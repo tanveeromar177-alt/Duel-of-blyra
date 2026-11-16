@@ -2690,6 +2690,349 @@ local function fn32(arg)
 	end
 	return tbl32
 end
+-- ============================================================================
+-- BLYRA SAVE SYSTEM (rewritten). Own file layer, own autosave, own loader.
+--   * writes blyra/BlyraConfig.json (+ BlyraConfig.json in the workspace root)
+--   * keeps a memory mirror in getgenv(), so a re-execute keeps settings even
+--     when the executor cannot write files
+--   * every save/load result is printed and shown as a Roblox notification
+-- ============================================================================
+local Store = { ready = false, noOverwrite = false, lastJson = nil, okOnce = false, failCount = 0 }
+do
+	local env = _G
+	pcall(function()
+		local g = getgenv()
+		if type(g) == "table" then
+			env = g
+		end
+	end)
+	local PATHS = { "blyra/BlyraConfig.json", "BlyraConfig.json" }
+	local lastNote = {}
+	local function pick(name)
+		local list = {}
+		pcall(function()
+			list[#list + 1] = getgenv()[name]
+		end)
+		pcall(function()
+			list[#list + 1] = _G[name]
+		end)
+		pcall(function()
+			list[#list + 1] = syn[name]
+		end)
+		pcall(function()
+			list[#list + 1] = getfenv()[name]
+		end)
+		for _, f in ipairs(list) do
+			if type(f) == "function" then
+				return f
+			end
+		end
+		return nil
+	end
+	function Store.notify(text, key)
+		key = key or text
+		local now = os.clock()
+		if lastNote[key] and now - lastNote[key] < 10 then
+			return
+		end
+		lastNote[key] = now
+		print("[BLYRA SAVE] " .. tostring(text))
+		pcall(function()
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "BLYRA Config",
+				Text = tostring(text),
+				Duration = 6,
+			})
+		end)
+	end
+	function Store.run(fn)
+		local ok, err = pcall(fn)
+		if not ok then
+			warn("[BLYRA SAVE] snapshot/save error: " .. tostring(err))
+			Store.notify("Save error: " .. tostring(err), "saveerr")
+		end
+		return ok
+	end
+	function Store.sanitize(v, depth)
+		depth = depth or 0
+		local kind = type(v)
+		if kind == "number" then
+			if v ~= v or v == math.huge or v == -math.huge then
+				return nil
+			end
+			return v
+		elseif kind == "string" or kind == "boolean" then
+			return v
+		elseif kind == "table" and depth < 8 then
+			local out, isArray, n = {}, true, 0
+			for k in pairs(v) do
+				n = n + 1
+				if type(k) ~= "number" then
+					isArray = false
+				end
+			end
+			if isArray and n > 0 then
+				for i = 1, #v do
+					out[i] = Store.sanitize(v[i], depth + 1)
+				end
+			else
+				for k, val in pairs(v) do
+					if type(k) == "string" or type(k) == "number" then
+						local clean = Store.sanitize(val, depth + 1)
+						if clean ~= nil then
+							out[tostring(k)] = clean
+						end
+					end
+				end
+			end
+			return out
+		end
+		return nil -- functions, Instances, Enums, userdata
+	end
+	local function ensureFolder()
+		local mk, isf = pick("makefolder"), pick("isfolder")
+		if not mk then
+			return
+		end
+		local exists = false
+		if isf then
+			pcall(function()
+				exists = isf("blyra") == true
+			end)
+		end
+		if not exists then
+			pcall(mk, "blyra")
+		end
+	end
+	function Store.write(json)
+		local wf, rf = pick("writefile"), pick("readfile")
+		if not wf then
+			return false, "executor has no writefile"
+		end
+		ensureFolder()
+		local good, errs = {}, {}
+		for _, p in ipairs(PATHS) do
+			local ok, err = pcall(wf, p, json)
+			if ok then
+				local verified = true
+				if rf then
+					local okR, got = pcall(rf, p)
+					verified = okR and type(got) == "string" and #got > 2
+				end
+				if verified then
+					good[#good + 1] = p
+				else
+					errs[#errs + 1] = p .. ": readback failed"
+				end
+			else
+				errs[#errs + 1] = p .. ": " .. tostring(err)
+			end
+		end
+		if #good > 0 then
+			return true, table.concat(good, ", ")
+		end
+		return false, table.concat(errs, " | ")
+	end
+	-- returns a list of { text = ..., path = ... }; files first, memory mirror last
+	function Store.candidates()
+		local out, rf, isf = {}, pick("readfile"), pick("isfile")
+		Store.fileExists = false
+		if rf then
+			for _, p in ipairs(PATHS) do
+				-- try the read even if isfile says no: some executors report isfile wrongly
+				local ok, s = pcall(rf, p)
+				if ok and type(s) == "string" and s ~= "" then
+					Store.fileExists = true
+					out[#out + 1] = { text = s, path = p }
+				elseif isf then
+					local okE, e = pcall(isf, p)
+					if okE and e == true then
+						Store.fileExists = true
+					end
+				end
+			end
+		end
+		local m = env.__BLYRA_SAVE_MIRROR
+		if type(m) == "string" and m ~= "" then
+			out[#out + 1] = { text = m, path = "memory" }
+		end
+		return out
+	end
+	function Store.backupCorrupt(text)
+		pcall(function()
+			local wf = pick("writefile")
+			if wf and type(text) == "string" then
+				ensureFolder()
+				wf("blyra/BlyraConfig.corrupt-backup.json", text)
+			end
+		end)
+	end
+	function Store.saveConfig(snapshot)
+		if not Store.ready or Store.noOverwrite then
+			return false, "save disabled"
+		end
+		local clean = Store.sanitize(snapshot)
+		if type(clean) ~= "table" then
+			return false, "empty snapshot"
+		end
+		local ok, json = pcall(function()
+			return HttpService:JSONEncode(clean)
+		end)
+		if not ok then
+			-- isolate the key that cannot be encoded so one bad value never blocks the rest
+			local safe = {}
+			for k, v in pairs(clean) do
+				if pcall(function()
+					return HttpService:JSONEncode({ [k] = v })
+				end) then
+					safe[k] = v
+				else
+					warn("[BLYRA SAVE] dropped unsavable key: " .. tostring(k))
+				end
+			end
+			ok, json = pcall(function()
+				return HttpService:JSONEncode(safe)
+			end)
+			if not ok then
+				Store.notify("Save failed (encode): " .. tostring(json), "enc")
+				return false, tostring(json)
+			end
+		end
+		if json == Store.lastJson then
+			return true, "unchanged"
+		end
+		env.__BLYRA_SAVE_MIRROR = json
+		local wrote, info = Store.write(json)
+		if wrote then
+			Store.lastJson = json
+			Store.failCount = 0
+			if not Store.okOnce then
+				Store.okOnce = true
+				Store.notify("Autosave is working -> " .. tostring(info), "saveok")
+			end
+		else
+			Store.failCount = Store.failCount + 1
+			if Store.failCount == 1 or Store.failCount % 20 == 0 then
+				Store.notify(
+					"SAVE FAILED: " .. tostring(info) .. " (kept in memory, survives re-execute only)",
+					"savefail"
+				)
+			end
+		end
+		return wrote, info
+	end
+
+	-- simple one-to-one settings: { fileKey, Config key, min, max }
+	local SIMPLE = {
+		{ "normalSpeed", "normalSpeed", 0, 10000 },
+		{ "carrySpeed", "carrySpeed", 0, 10000 },
+		{ "laggerSpeed", "laggerSpeed", 0, 10000 },
+		{ "normalStealSpeed", "normalStealSpeed", 0, 10000 },
+		{ "laggerStealSpeed", "laggerStealSpeed", 0, 10000 },
+		{ "carryStealSpeed", "carryStealSpeed", 0, 10000 },
+		{ "uiScale", "uiScale", 0.5, 1.25 },
+		{ "popupScale", "popupScale", 0.2, 5 },
+		{ "floatScale", "floatScale", 0.4, 1.5 },
+		{ "stealBarScale", "stealBarScale", 0.5, 2 },
+		{ "billboardScale", "billboardScale", 0.5, 2 },
+		{ "statsBarEnabled", "statsBarEnabled" },
+		{ "stackButtonsHidden", "stackButtonsHidden" },
+		{ "lockButtonsEnabled", "lockButtonsEnabled" },
+		{ "uiLocked", "uiLocked" },
+		{ "autoLeftEnabled", "autoLeftEnabled" },
+		{ "autoRightEnabled", "autoRightEnabled" },
+		{ "dropEnabled", "dropEnabled" },
+		{ "unwalkEnabled", "unwalkEnabled" },
+		{ "tryhardAnimEnabled", "tryhardAnimEnabled" },
+		{ "tryhardAnimPack", "tryhardAnimPack", 0, 1000000 },
+		{ "playerAnimEnabled", "playerAnimEnabled" },
+		{ "batCounterEnabled", "batCounterEnabled" },
+		{ "batCounterMode", "batCounterMode" },
+		{ "ragdollTimerEnabled", "ragdollTimerEnabled" },
+		{ "enemyRagdollTimerEnabled", "enemyRagdollTimerEnabled" },
+		{ "infJump", "infJumpEnabled" },
+		{ "infJumpMode", "infJumpMode" },
+		{ "antiLag", "antiLagEnabled" },
+		{ "potatoGraphics", "potatoGraphicsEnabled" },
+		{ "medusaCounter", "medusaCounterEnabled" },
+		{ "autoDeathReset", "autoDeathResetEnabled" },
+		{ "duelAntiDieEnabled", "duelAntiDieEnabled" },
+		{ "autoSwingEnabled", "autoSwingEnabled" },
+		{ "autoStealEnabled", "autoStealEnabled" },
+		{ "autoStealStopWhenHit", "autoStealStopWhenHit" },
+		{ "autoStealHitPauseSeconds", "autoStealHitPauseSeconds", 0.1, 30 },
+		{ "autoCarryOnSteal", "autoCarrySpeedEnabled" },
+		{ "mirrorTpDownEnabled", "mirrorTpDownEnabled" },
+		{ "autoTPDownEnabled", "autoTPDownEnabled" },
+		{ "autoTPDownHeight", "autoTPDownHeight", 1, 100000 },
+		{ "musicVolume", "musicVolume", 0, 10 },
+		{ "musicCurrentSong", "musicCurrentSong", 0, 1000000 },
+		{ "holdJumpEnabled", "holdJumpEnabled" },
+		{ "safeModeEnabled", "safeModeEnabled" },
+		{ "warningE01Enabled", "warningE01Enabled" },
+		{ "batTpNoCollision", "batTpNoCollision" },
+		{ "espBoxEnabled", "espBoxEnabled" },
+		{ "espLineEnabled", "espLineEnabled" },
+		{ "espLineOrigin", "espLineOrigin" },
+		{ "espPlayerEnabled", "espPlayerEnabled" },
+		{ "espInfoEnabled", "espInfoEnabled" },
+		{ "skinGalaxyEnabled", "skinGalaxyEnabled" },
+		{ "skinCustomEnabled", "skinCustomEnabled" },
+		{ "skinChangerSelection", "skinChangerSelection", 1, 5 },
+		{ "keybindBoardEnabled", "keybindBoardEnabled" },
+		{ "speedToggled", "speedToggled" },
+		{ "stealToggled", "stealToggled" },
+		{ "v2UseCarry", "v2UseCarry" },
+		{ "purpleSkyEnabled", "purpleSkyEnabled" },
+		{ "skyMode", "skyMode" },
+		{ "dropType", "dropType" },
+		{ "silentBatAim", "silentBatAim" },
+		{ "sbaEnemyPerm", "sbaEnemyPerm" },
+		{ "sbaEnemyRadio", "sbaEnemyRadio" },
+		{ "sbaRange", "sbaRange", 0.1, 10000 },
+		{ "sbaTurnSpeed", "sbaTurnSpeed", 0.1, 10000 },
+		{ "fovEnabled", "fovEnabled" },
+		{ "fovValue", "fovValue", 60, 200 },
+		{ "resEnabled", "resEnabled" },
+		{ "resFov", "resFov", 70, 179 },
+		{ "autoPlayMode", "autoPlayMode" },
+		{ "smartBatTpDistance", "smartBatTpDistance", 1, 100 },
+		{ "smartBatTpSpeed", "smartBatTpSpeed", 15, 80 },
+		{ "smartBatTpAuto", "smartBatTpAuto" },
+		{ "speedKeyLaggerCleared", "_speedKeyLaggerCleared" },
+	}
+	-- Applies each setting on its own, so one bad value can never abort the others.
+	function Store.applySimple(saved)
+		local applied = 0
+		for _, m in ipairs(SIMPLE) do
+			local val = saved[m[1]]
+			if val ~= nil then
+				pcall(function()
+					local kind = type(val)
+					local cur = Config[m[2]]
+					if kind ~= "boolean" and kind ~= "string" and kind ~= "number" then
+						return
+					end
+					if cur ~= nil and type(cur) ~= kind then
+						return
+					end
+					if kind == "number" then
+						if val ~= val or val == math.huge or val == -math.huge then
+							return
+						end
+						if m[3] then
+							val = math.clamp(val, m[3], m[4])
+						end
+					end
+					Config[m[2]] = val
+					applied = applied + 1
+				end)
+			end
+		end
+		return applied
+	end
+end
+
 local function fn33()
 	local function fn34(arg)
 		if not arg or not arg.type or not arg.value then
@@ -2869,113 +3212,19 @@ local function fn33()
 		},
 		toggles = tbl32.toggleKeybinds or {},
 	}
-	local function sanitizeForJson(v, depth)
-		depth = depth or 0
-		local kind = type(v)
-		if kind == "number" then
-			if v ~= v or v == math.huge or v == -math.huge then
-				return nil
-			end
-			return v
-		elseif kind == "string" or kind == "boolean" then
-			return v
-		elseif kind == "table" and depth < 8 then
-			local out, isArray, n = {}, true, 0
-			for k in pairs(v) do
-				n = n + 1
-				if type(k) ~= "number" then
-					isArray = false
-				end
-			end
-			if isArray and n > 0 then
-				for i = 1, #v do
-					out[i] = sanitizeForJson(v[i], depth + 1)
-				end
-			else
-				for k, val in pairs(v) do
-					if type(k) == "string" or type(k) == "number" then
-						local clean = sanitizeForJson(val, depth + 1)
-						if clean ~= nil then
-							out[tostring(k)] = clean
-						end
-					end
-				end
-			end
-			return out
-		end
-		return nil -- functions, Instances, Enums, userdata
-	end
-	local ok, result = pcall(function()
-		return HttpService:JSONEncode(sanitizeForJson(tbl32))
-	end)
-	if not ok then
-		warn("[BLYRA] config encode failed: " .. tostring(result))
-	end
-	pcall(function()
-		if _G.__BLYRA_FS and _G.__BLYRA_FS.makefolder then
-			_G.__BLYRA_FS.makefolder("blyra")
-		elseif type(makefolder) == "function" then
-			makefolder("blyra")
-		end
-	end)
-	local function _writeConfig(payload)
-		if type(payload) ~= "string" or payload == "" then
-			return false
-		end
-		local paths = { "blyra/BlyraConfig.json", "BlyraConfig.json" }
-		for _, pth in ipairs(paths) do
-			local wOk = pcall(function()
-				writefile_(pth, payload)
-			end)
-			if wOk then
-				-- verify write stuck
-				local okR, got = pcall(function()
-					return readfile_(pth)
-				end)
-				if okR and type(got) == "string" and #got > 10 then
-					return true
-				end
-			end
-			wOk = pcall(function()
-				if type(writefile) == "function" then
-					writefile(pth, payload)
-				end
-			end)
-			if wOk then
-				return true
-			end
-		end
-		return false
-	end
-	if ok and result then
-		if not _writeConfig(result) then
-			warn("[BLYRA] config write failed, retrying stripped")
-			tbl32.toggleKeybinds = nil
-			local ok2, result2 = pcall(function()
-				return HttpService:JSONEncode(sanitizeForJson(tbl32))
-			end)
-			if ok2 and result2 then
-				_writeConfig(result2)
-			end
-		end
-	else
-		tbl32.toggleKeybinds = nil
-		local ok2, result2 = pcall(function()
-			return HttpService:JSONEncode(sanitizeForJson(tbl32))
-		end)
-		if ok2 and result2 then
-			_writeConfig(result2)
-		end
-	end
+	Store.saveConfig(tbl32)
 	local v23 = fn32(tbl30)
-	if v23 then
+	if v23 and Store.ready and not Store.noOverwrite then
 		local ok2, result2 = pcall(function()
-			return HttpService:JSONEncode({ toggleKeybinds = v23 })
+			return HttpService:JSONEncode({ toggleKeybinds = Store.sanitize(v23) })
 		end)
-		if ok2 and result2 then
-			pcall(function()
+		if ok2 and result2 and result2 ~= Store.lastKb then
+			local wOk = pcall(function()
 				writefile_("blyra/BlyraKeybinds.json", result2)
 			end)
+			if wOk then
+				Store.lastKb = result2
+			end
 		end
 	end
 end
@@ -2990,13 +3239,13 @@ local function fn34()
 	task.delay(0.35, function()
 		flag4 = false
 		Config._configDirty = false
-		pcall(fn33)
+		Store.run(fn33)
 	end)
 end
 local function fn35()
 	flag4 = false
 	Config._configDirty = false
-	pcall(fn33)
+	Store.run(fn33)
 end
 -- public aliases so any feature can auto-save
 local function scheduleSaveConfig()
@@ -3012,6 +3261,15 @@ task.spawn(function()
 		task.wait(5)
 		if Config._configDirty and _G.BLYRA_LOADED then
 			pcall(fn35)
+		end
+	end
+end)
+-- BLYRA autosave: every 3 s, writes only when something changed
+task.spawn(function()
+	while true do
+		task.wait(3)
+		if Store.ready then
+			Store.run(fn33)
 		end
 	end
 end)
@@ -3305,67 +3563,8 @@ local function fn38(arg)
 	end
 	return nil, nil
 end
-local function fn39()
-	local hasCfg = false
-	for _, pth in ipairs({ "blyra/BlyraConfig.json", "BlyraConfig.json" }) do
-		local okI = pcall(function()
-			if isfile_(pth) then
-				hasCfg = true
-			end
-		end)
-		if hasCfg then break end
-		pcall(function()
-			if type(isfile) == "function" and isfile(pth) then
-				hasCfg = true
-			end
-		end)
-		if hasCfg then break end
-	end
-	if not hasCfg then
-		return true
-	end
-	local data = nil
-	pcall(function()
-		if type(tbl) == "table" and tbl[1] and tbl[1][6] and tbl[1][3] then
-			data = tbl[1][6][tbl[1][3]]
-			tbl[1][6][tbl[1][3]] = nil
-		end
-	end)
-	local v23 = data
-	if type(v23) ~= "table" then
-		local result = nil
-		for _, pth in ipairs({ "blyra/BlyraConfig.json", "BlyraConfig.json" }) do
-			local okR, dataR = pcall(readfile_, pth)
-			if okR and type(dataR) == "string" and dataR ~= "" then
-				result = dataR
-				break
-			end
-			okR, dataR = pcall(function()
-				if type(readfile) == "function" then
-					return readfile(pth)
-				end
-			end)
-			if okR and type(dataR) == "string" and dataR ~= "" then
-				result = dataR
-				break
-			end
-		end
-		if type(result) ~= "string" or result == "" then
-			return false
-		end
-		local decoded = nil
-		local decOk = pcall(function()
-			decoded = HttpService:JSONDecode(result)
-		end)
-		if not decOk or type(decoded) ~= "table" then
-			return false
-		end
-		v23 = decoded
-	end
-	-- FIX: the keybind helper below reads `data`; it must be the same table as v23
-	-- (it stayed nil when the config came from the file, which threw an error,
-	-- made the caller load defaults, and the delayed autosave then overwrote the file).
-	data = v23
+function Store.legacyApply(v23)
+	local data = v23
 	local tbl35 = {
 		v3FillDuration = "number",
 		popupScale = "number",
@@ -4077,6 +4276,53 @@ local function fn39()
 		end
 	end
 	Config.bgMode = "image"
+	return true
+end
+local function fn39()
+	local data, source = nil, "loader"
+	pcall(function()
+		if type(tbl) == "table" and tbl[1] and tbl[1][6] and tbl[1][3] then
+			data = tbl[1][6][tbl[1][3]]
+			tbl[1][6][tbl[1][3]] = nil
+		end
+	end)
+	if type(data) ~= "table" then
+		data = nil
+		local cands, firstText = Store.candidates(), nil
+		for _, c in ipairs(cands) do
+			firstText = firstText or c.text
+			local ok, dec = pcall(function()
+				return HttpService:JSONDecode(c.text)
+			end)
+			if ok and type(dec) == "table" then
+				data, source = dec, c.path
+				break
+			end
+		end
+		if not data then
+			if firstText then
+				Store.backupCorrupt(firstText)
+				Store.notify("Saved config is unreadable, a backup was kept. Using defaults.", "corrupt")
+				return false
+			end
+			if Store.fileExists then
+				-- the file is there but could not be read: never overwrite it with defaults
+				Store.noOverwrite = true
+				Store.notify("Config file exists but could not be read. Autosave paused to protect it.", "unread")
+				return true
+			end
+			Store.notify("No saved config yet. Your settings will be saved automatically.", "first")
+			return true
+		end
+	end
+	local applied = Store.applySimple(data)
+	local ok, err = pcall(Store.legacyApply, data)
+	if not ok then
+		warn("[BLYRA SAVE] part of the config could not be applied: " .. tostring(err))
+		Store.notify("Config loaded with 1 error: " .. tostring(err), "applyerr")
+	else
+		Store.notify("Config loaded (" .. tostring(applied) .. " settings) from " .. tostring(source), "loaded")
+	end
 	return true
 end
 local tbl35 = {}
@@ -8382,6 +8628,7 @@ tbl31 = {
 			end)
 			pcall(fn40, fn15(v13))
 		end
+		Store.ready = true
 		pcall(Config._buildHeadDisplay, localPlayer.Character)
 		if Config.autoStealEnabled then
 			pcall(fn23)
