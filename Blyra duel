@@ -6133,7 +6133,12 @@ function VapserUI.fit()
         local hudScale = compact and math.min(1, (viewport.X - 24) / 380) or math.clamp(room / 380, 0.65, 1)
         VapserUI.hudScale.Scale = hudScale
         local hudWidth, hudHeight = 380 * hudScale, 35 * hudScale
-        if not savedProgressBarPos then
+        VapserUI.hudFitting = true
+        local want = VapserUI.hudWant
+        if want then
+            pbFrame.Position = UDim2.fromOffset(math.clamp(want.X, 6, math.max(6, viewport.X - hudWidth - 6)),
+                math.clamp(want.Y, 6, math.max(6, viewport.Y - hudHeight - 6)))
+        elseif not savedProgressBarPos then
             if compact then
                 pbFrame.Position = UDim2.fromOffset((viewport.X - hudWidth) / 2,
                     math.min(viewport.Y - hudHeight - 12, main.Position.Y.Offset + size.Y + 14))
@@ -6145,6 +6150,7 @@ function VapserUI.fit()
             pbFrame.Position = UDim2.fromOffset(math.clamp(point.X, 6, math.max(6, viewport.X - hudWidth - 6)),
                 math.clamp(point.Y, 6, math.max(6, viewport.Y - hudHeight - 6)))
         end
+        VapserUI.hudFitting = false
     end
 
 end
@@ -8523,16 +8529,14 @@ function buildGui()
     local function mkSect(page, text)
         local row = VapserUI.new("Frame", page, {Name = "Section", Size = UDim2.new(1, -4, 0, 24), BackgroundTransparency = 1,
             LayoutOrder = getNextOrder(page), ZIndex = 7})
-        local line = VapserUI.new("Frame", row, {Position = UDim2.fromOffset(1, 12), Size = UDim2.fromOffset(10, 2),
-            BackgroundColor3 = getThemeColor(), BorderSizePixel = 0, ZIndex = 8})
-        local label = VapserUI.text(row, text:upper(), UDim2.fromOffset(21, 0), UDim2.new(1, -24, 1, 0),
+        local label = VapserUI.text(row, text:upper(), UDim2.fromOffset(4, 0), UDim2.new(1, -8, 1, 0),
             9, Color3.fromRGB(203, 127, 168), 8)
         label.Font = Enum.Font.GothamBold
         return row
     end
     local function mkRow(page, height)
         local row = VapserUI.new("Frame", page, {Name = "Control", Size = UDim2.new(1, -4, 0, math.max(height or 40, 40)),
-            BackgroundColor3 = ROW_BG, BackgroundTransparency = 0.06, BorderSizePixel = 0,
+            BackgroundColor3 = ROW_BG, BackgroundTransparency = 0.4, BorderSizePixel = 0,
             LayoutOrder = getNextOrder(page), ZIndex = 7})
         VapserUI.round(row, 10)
         VapserUI.new("UIGradient", row, {Rotation = 0, Color = ColorSequence.new(Color3.fromRGB(30, 28, 27), Color3.fromRGB(16, 21, 28))})
@@ -8619,14 +8623,10 @@ function buildGui()
         local w = math.max(width or 56, 64)
         local box = VapserUI.new("TextBox", row, {Size = UDim2.fromOffset(w, 32),
             Position = UDim2.new(1, -math.max(xoff or 76, w + 12), 0.5, -16), Text = tostring(default),
-            BackgroundColor3 = INP, BorderSizePixel = 0, Font = Enum.Font.GothamBold, TextSize = 13,
+            BackgroundTransparency = 1, BorderSizePixel = 0, Font = Enum.Font.GothamBold, TextSize = 13,
             TextColor3 = Color3.fromRGB(250, 129, 195), ClearTextOnFocus = false, ZIndex = 9})
-        VapserUI.round(box, 9)
-        local border = VapserUI.stroke(box, ROW_BORDER, 0.58, 1)
         local lastValid = tostring(default)
-        box.Focused:Connect(function() border.Color = getThemeColor(); border.Transparency = 0.10 end)
         box.FocusLost:Connect(function()
-            border.Color = ROW_BORDER; border.Transparency = 0.58
             local value = tonumber(box.Text)
             if value and value == value and math.abs(value) < math.huge then
                 local ok = pcall(callback, value)
@@ -9292,6 +9292,15 @@ function buildGui()
     stealHud.stats.TextStrokeTransparency = 0.6
     updateStealProgress(stealHud.value, stealHud.state)
     drag(pbFrame)
+    -- Remember where the bar was put (drag / saved config) so viewport changes
+    -- (e.g. the on-screen keyboard when typing a number) never move it for good.
+    pbFrame:GetPropertyChangedSignal("Position"):Connect(function()
+        if VapserUI.hudFitting then return end
+        local cam = Workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(0, 0)
+        local pos = pbFrame.Position
+        VapserUI.hudWant = Vector2.new(pos.X.Scale * vp.X + pos.X.Offset, pos.Y.Scale * vp.Y + pos.Y.Offset)
+    end)
     VapserUI.fit()
     do
         local viewConnection
@@ -10387,118 +10396,6 @@ do
         return false
     end
 
-end
-
-do
-    local SoundPlayers = game:GetService("Players")
-    local SoundLP = SoundPlayers.LocalPlayer
-    local SWORD_SOUND = "rbxassetid://5713085119"
-    local hookedTools = setmetatable({}, {__mode = "k"})
-    local customSounds = setmetatable({}, {__mode = "k"})
-
-    local function isSwordTool(tool)
-        if not tool or not tool:IsA("Tool") then return false end
-        local name = tool.Name:lower()
-        return name:find("bat", 1, true) ~= nil or name:find("slap", 1, true) ~= nil
-            or name:find("sword", 1, true) ~= nil or name:find("knife", 1, true) ~= nil
-            or name:find("espada", 1, true) ~= nil
-    end
-
-    local function makeCustomSound(parent)
-        local old = customSounds[parent]
-        if old and old.Parent then
-            old.SoundId = SWORD_SOUND
-            return old
-        end
-        local sound = Instance.new("Sound")
-        sound.Name = "ShelCustomToolSound"
-        sound.SoundId = SWORD_SOUND
-        sound.Volume = 1
-        sound.Looped = false
-        sound.Parent = parent
-        customSounds[parent] = sound
-        return sound
-    end
-
-    local function playCustomSound(parent)
-        if not parent or not parent.Parent then return end
-        local sound = makeCustomSound(parent)
-        pcall(function()
-            sound:Stop()
-            sound.TimePosition = 0.2
-            sound.Volume = 1
-            sound:Play()
-        end)
-    end
-
-    local function hookTool(tool)
-        if not isSwordTool(tool) or hookedTools[tool] then return end
-        hookedTools[tool] = true
-        local hookedSounds = setmetatable({}, {__mode = "k"})
-
-        local function hookSound(sound)
-            if not sound:IsA("Sound") or sound.Name == "ShelCustomToolSound" or hookedSounds[sound] then return end
-            hookedSounds[sound] = true
-            local triggering = false
-            local function trigger()
-                if triggering or not sound.Parent then return end
-                if sound.Playing or sound.TimePosition > 0 then
-                    triggering = true
-                    pcall(function()
-                        sound.Volume = 0
-                        sound:Stop()
-                    end)
-                    playCustomSound(sound.Parent)
-                    triggering = false
-                end
-            end
-            sound:GetPropertyChangedSignal("Playing"):Connect(trigger)
-            sound:GetPropertyChangedSignal("TimePosition"):Connect(trigger)
-        end
-
-        for _, descendant in ipairs(tool:GetDescendants()) do
-            hookSound(descendant)
-        end
-        tool.DescendantAdded:Connect(hookSound)
-    end
-
-    local function watchContainer(container)
-        if not container then return end
-        for _, child in ipairs(container:GetChildren()) do
-            if child:IsA("Tool") then task.defer(hookTool, child) end
-        end
-        if not container:GetAttribute("ShelToolSoundWatch") then
-            container:SetAttribute("ShelToolSoundWatch", true)
-            container.ChildAdded:Connect(function(child)
-                if not child:IsA("Tool") then return end
-                task.wait()
-                hookTool(child)
-            end)
-        end
-    end
-
-    local function scanSoundTools()
-        watchContainer(SoundLP:FindFirstChildOfClass("Backpack"))
-        watchContainer(SoundLP.Character)
-    end
-
-    scanSoundTools()
-    SoundLP.ChildAdded:Connect(function(child)
-        if child:IsA("Backpack") then watchContainer(child) end
-    end)
-    SoundLP.CharacterAdded:Connect(function(character)
-        task.wait(0.5)
-        watchContainer(character)
-        scanSoundTools()
-    end)
-    task.spawn(function()
-        while task.wait(1) do scanSoundTools() end
-    end)
-
-    _G.ShelSwordSound = {
-        apply = scanSoundTools,
-        SwordSound = SWORD_SOUND,
-    }
 end
 
 do
