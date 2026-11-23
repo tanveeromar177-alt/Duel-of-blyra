@@ -2316,8 +2316,8 @@ stretchFOV = 120
 uiLocked = false
 mobileButtonsLocked = false
 uiScaleValue = 90
-espEnabled = false
 espLineEnabled = false
+espBoxEnabled = false
 
 vividGraphicsEnabled = false
 _vividEffects = {}
@@ -3524,8 +3524,8 @@ autoStealModeBtn = nil
 setAntiDieVisual = nil
 setAntiBatVisual = nil
 setAntiFlingVisual = nil
-setESPVIsual = nil
 setESPLineVisual = nil
+setESPBoxVisual = nil
 mobSetAutoBat, mobSetAutoLeft, mobSetAutoRight, mobSetDropBR, mobSetTpDown, mobSetCarry, mobSetLagger1, mobSetLagger2, mobSetBatV2 = nil, nil, nil, nil, nil, nil, nil, nil, nil
 miniBtn, main, gui = nil, nil, nil
 MobilePanel = nil
@@ -4189,355 +4189,190 @@ LP.CharacterAdded:Connect(function()
     if antiFlingEnabled then startAntiFling() end
 end)
 
-local espEnabled = espEnabled or false
-local espActivePlayers = {}
-local espLoopConn = nil
-local Camera = workspace.CurrentCamera
-local GUI2_ESP_COLOR = Color3.fromRGB(139, 72, 246)
-local GUI2_ESP_TEXT_STROKE = Color3.fromRGB(48, 16, 92)
+-- ESP (ported from the Vampire hub: Line / Box). Everything is pink and uses the
+-- global flags espLineEnabled (lines to enemies), espBoxEnabled (boxes),
+-- which are saved in the config.
+do
+    local PINK = Color3.fromRGB(255, 95, 175)
+    local VOID_Y, MAX_Y = -35, 350          -- players outside this height range are ignored (void/fling)
+    local layer = nil
+    local linePool, boxPool = {}, {}
+    local renderConn = nil
 
-local function getESPThemeColors(accent)
-    local c = getThemeColor() or accent or Color3.fromRGB(245, 245, 250)
-    return c, Color3.fromRGB(0, 0, 0)
-end
-
-local function createESP()
-    local currentFill, currentLine = getESPThemeColors()
-    local esp = {
-        Tracer = Drawing and Drawing.new("Line") or nil,
-        Highlight = Instance.new("Highlight"),
-        Lines = {},
-    }
-    if esp.Tracer then
-        esp.Tracer.Color = currentLine
-        esp.Tracer.Thickness = 3
-        esp.Tracer.Transparency = 1
-        esp.Tracer.ZIndex = 2
-    end
-
-    esp.Highlight.Name = "VapserESP_Highlight"
-    esp.Highlight.FillColor = currentFill
-    esp.Highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-    esp.Highlight.FillTransparency = 0.12
-    esp.Highlight.OutlineTransparency = 0.18
-    esp.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-
-    local parentGui
-    local ok, robGui = pcall(function() return game:GetService("CoreGui"):FindFirstChild("RobloxGui") end)
-    if ok and robGui then parentGui = robGui else parentGui = LP:FindFirstChildOfClass("PlayerGui") end
-    if not parentGui then parentGui = game:GetService("CoreGui") end
-    pcall(function() esp.Highlight.Parent = parentGui end)
-
-    local nameBillboard = Instance.new("BillboardGui")
-    nameBillboard.Name = "VapserESP_Name"
-    nameBillboard.Size = UDim2.new(0, 170, 0, 28)
-    nameBillboard.StudsOffset = Vector3.new(0, 1.3, 0)
-    nameBillboard.AlwaysOnTop = true
-    nameBillboard.Parent = parentGui
-
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(0, 170, 0, 28)
-    nameLabel.AnchorPoint = Vector2.new(0.5, 0)
-    nameLabel.Position = UDim2.new(0.5, 0, 0, 2)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = ""
-    nameLabel.TextColor3 = getThemeColor()
-    nameLabel.TextSize = 15
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    nameLabel.TextStrokeTransparency = 0
-    nameLabel.TextXAlignment = Enum.TextXAlignment.Center
-    nameLabel.TextYAlignment = Enum.TextYAlignment.Center
-    nameLabel.ZIndex = 5
-    nameLabel.Parent = nameBillboard
-
-    local nameOutline = Instance.new("UIStroke")
-    nameOutline.Color = Color3.fromRGB(0, 0, 0)
-    nameOutline.Thickness = 2.2
-    nameOutline.Transparency = 0.12
-    nameOutline.Parent = nameLabel
-
-    if Drawing then
-        for i = 1, 14 do
-            local line = Drawing.new("Line")
-            line.Color = currentLine
-            line.Thickness = 2
-            line.Transparency = 1
-            line.ZIndex = 3
-            table.insert(esp.Lines, line)
+    -- remove leftovers from a previous execution
+    for _, parent in ipairs({CoreGui, pgui}) do
+        for _, name in ipairs({"VapserESPLayer", "VapserESPLine"}) do
+            pcall(function() local old = parent:FindFirstChild(name); if old then old:Destroy() end end)
         end
     end
-
-    esp.NameTag = nameBillboard
-    esp.NameLabel = nameLabel
-    esp.NameOutline = nameOutline
-    return esp
-end
-
-_G.__VapserRefreshESPTheme = function(accent, outlineColor)
-    local fillColor, lineColor = getESPThemeColors(accent)
-    for _, data in pairs(espActivePlayers) do
-        if type(data) == "table" and data.esp then
-            local esp = data.esp
-            if esp.Tracer then pcall(function() esp.Tracer.Color = lineColor end) end
-            if esp.Highlight then
-                esp.Highlight.FillColor = fillColor
-                esp.Highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-            end
-            if esp.NameLabel then
-                esp.NameLabel.TextColor3 = getThemeColor()
-                esp.NameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            end
-            if esp.NameOutline then esp.NameOutline.Color = Color3.fromRGB(0, 0, 0) end
-            for _, line in ipairs(esp.Lines or {}) do pcall(function() line.Color = lineColor end) end
-        end
-    end
-end
-
-local function removeESP(plr)
-    local data = espActivePlayers[plr]
-    if data then
-        if data.esp.Tracer then pcall(function() data.esp.Tracer:Remove() end) end
-        if data.esp.Highlight then pcall(function() data.esp.Highlight:Destroy() end) end
-        if data.esp.NameTag then pcall(function() data.esp.NameTag:Destroy() end) end
-        for _, line in ipairs(data.esp.Lines) do
-            pcall(function() line:Remove() end)
-        end
-        espActivePlayers[plr] = nil
-    end
-end
-
-local function updateESP(plr, esp)
-    if not espEnabled then
-        if esp.Tracer then esp.Tracer.Visible = false end
-        esp.Highlight.Enabled = false
-        for _, line in ipairs(esp.Lines) do line.Visible = false end
-        if esp.NameTag then esp.NameTag.Enabled = false end
-        return
-    end
-
-    local character = plr.Character
-    local hum = character and character:FindFirstChildOfClass("Humanoid")
-    local trackPart = character and (
-        character:FindFirstChild("HumanoidRootPart")
-        or character.PrimaryPart
-        or character:FindFirstChild("UpperTorso")
-        or character:FindFirstChild("Torso")
-        or character:FindFirstChild("Head")
-    )
-
-    if character and trackPart and (not hum or hum.Health > 0) then
-        esp.Highlight.Adornee = character
-        esp.Highlight.Enabled = espEnabled
-        if esp.Tracer then esp.Tracer.Visible = false end
-        for _, line in ipairs(esp.Lines) do line.Visible = false end
-
-        if esp.NameTag and esp.NameLabel then
-            pcall(function()
-                esp.NameTag.Adornee = trackPart
-                esp.NameTag.Enabled = espEnabled
-                esp.NameLabel.Text = plr.Name or plr.DisplayName or ""
-                esp.NameLabel.TextColor3 = getThemeColor()
-            end)
-        end
-    else
-        if esp.Tracer then esp.Tracer.Visible = false end
-        esp.Highlight.Enabled = false
-        esp.Highlight.Adornee = nil
-        for _, line in ipairs(esp.Lines) do line.Visible = false end
-        if esp.NameTag then esp.NameTag.Enabled = false end
-    end
-end
-
-local function createESPForPlayer(plr)
-    if plr == LP then return end
-    if espActivePlayers[plr] and espActivePlayers[plr].esp then
-        if espActivePlayers[plr].esp.NameTag then
-            pcall(function() espActivePlayers[plr].esp.NameTag.Enabled = espEnabled end)
-        end
-        return
-    end
-    removeESP(plr)
-    local esp = createESP()
-    espActivePlayers[plr] = { esp = esp }
-end
-
-local espJoinConn, espLeaveConn
-local function enableESP()
-    if espEnabled then return end
-    espEnabled = true
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LP then task.spawn(function() createESPForPlayer(plr) end) end
-    end
-    local espAccumulator = 0
-    if espLoopConn then espLoopConn:Disconnect() end
-    espLoopConn = RunService.Heartbeat:Connect(function(dt)
-        espAccumulator = espAccumulator + (dt or 0)
-        if espAccumulator < 0.15 then return end
-        espAccumulator = 0
-        for plr, data in pairs(espActivePlayers) do
-            if typeof(plr) == "Instance" and plr:IsA("Player") and data and data.esp then
-                pcall(function() updateESP(plr, data.esp) end)
+    pcall(function()
+        if gethui then
+            for _, name in ipairs({"VapserESPLayer", "VapserESPLine"}) do
+                local old = gethui():FindFirstChild(name)
+                if old then old:Destroy() end
             end
         end
     end)
-    espJoinConn = Players.PlayerAdded:Connect(function(plr)
-        if not espEnabled or plr == LP then return end
-        task.wait(0.3)
-        createESPForPlayer(plr)
-    end)
-    espLeaveConn = Players.PlayerRemoving:Connect(function(plr) removeESP(plr) end)
-end
 
-local function disableESP()
-    espEnabled = false
-    if espLoopConn then espLoopConn:Disconnect(); espLoopConn = nil end
-    if espJoinConn then pcall(function() espJoinConn:Disconnect() end); espJoinConn = nil end
-    if espLeaveConn then pcall(function() espLeaveConn:Disconnect() end); espLeaveConn = nil end
-    for plr in pairs(espActivePlayers) do
-        if typeof(plr) == "Instance" and plr:IsA("Player") and plr ~= LP then removeESP(plr) end
+    local function ensureLayer()
+        if layer and layer.Parent then return layer end
+        layer = Instance.new("ScreenGui")
+        layer.Name = "VapserESPLayer"
+        layer.ResetOnSpawn = false
+        layer.IgnoreGuiInset = true
+        layer.DisplayOrder = 999
+        layer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        local ok = pcall(function() layer.Parent = (gethui and gethui()) or CoreGui end)
+        if not ok or not layer.Parent then layer.Parent = pgui end
+        linePool, boxPool = {}, {}
+        return layer
     end
-end
 
-function toggleESP(on)
-    if on then enableESP() else disableESP() end
-    if setESPVIsual then setESPVIsual(on) end
-end
-
-local _espLineGui = nil
-local _espLineFrame = nil
-local _espLineOutline = nil
-local _espLineConn = nil
-local _espLineState = { scanElapsed = math.huge, targetRoot = nil }
-
-local function ensureESPLineGui()
-    if _espLineGui and _espLineGui.Parent then return end
-    _espLineGui = Instance.new("ScreenGui")
-    _espLineGui.Name = "VapserESPLine"
-    _espLineGui.IgnoreGuiInset = true
-    _espLineGui.ResetOnSpawn = false
-    _espLineGui.DisplayOrder = 1000
-    _espLineGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local okP = pcall(function() _espLineGui.Parent = game:GetService("CoreGui") end)
-    if not okP then _espLineGui.Parent = LP:WaitForChild("PlayerGui") end
-
-    _espLineFrame = Instance.new("Frame")
-    _espLineFrame.Name = "ESPLine"
-    _espLineFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    _espLineFrame.BorderSizePixel = 0
-    _espLineFrame.Active = false
-    _espLineFrame.Visible = false
-    _espLineFrame.BackgroundColor3 = getThemeColor()
-    _espLineFrame.ZIndex = 1
-    _espLineFrame.Parent = _espLineGui
-
-    _espLineOutline = Instance.new("UIStroke", _espLineFrame)
-    _espLineOutline.Color = Color3.fromRGB(255, 255, 255)
-    _espLineOutline.Thickness = 0.7
-    _espLineOutline.Transparency = 0.45
-end
-
-function stopESPLine()
-    espLineEnabled = false
-    if _espLineConn then _espLineConn:Disconnect(); _espLineConn = nil end
-    if _espLineFrame then _espLineFrame.Visible = false end
-    _espLineState.targetRoot = nil
-    _espLineState.scanElapsed = math.huge
-    if _espLineGui and _espLineGui.Parent then
-        pcall(function() _espLineGui:Destroy() end)
+    local function newLine()
+        local f = Instance.new("Frame")
+        f.Name = "Line"
+        f.BorderSizePixel = 0
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.BackgroundColor3 = PINK
+        f.Active = false
+        f.Visible = false
+        f.ZIndex = 1
+        f.Parent = ensureLayer()
+        return f
     end
-    _espLineGui = nil
-    _espLineFrame = nil
-    _espLineOutline = nil
-end
 
-function startESPLine()
-    espLineEnabled = true
-    ensureESPLineGui()
-    if _espLineConn then _espLineConn:Disconnect() end
-    _espLineState.scanElapsed = math.huge
-    _espLineState.targetRoot = nil
+    local function newBox()
+        local f = Instance.new("Frame")
+        f.Name = "Box"
+        f.BorderSizePixel = 0
+        f.BackgroundColor3 = PINK
+        f.BackgroundTransparency = 0.8
+        f.Active = false
+        f.Visible = false
+        f.ZIndex = 2
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1.5
+        stroke.Color = PINK
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Parent = f
+        f.Parent = ensureLayer()
+        return f
+    end
 
-    _espLineConn = RunService.RenderStepped:Connect(function(dt)
-        if not espLineEnabled then
-            if _espLineFrame then _espLineFrame.Visible = false end
-            return
+    local function hideFrom(pool, fromIndex)
+        for i = fromIndex + 1, #pool do pool[i].Visible = false end
+    end
+
+    local function targetOf(plr)
+        if plr == LP then return nil end
+        local ch = plr.Character
+        if not ch then return nil end
+        local hum = ch:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health <= 0 then return nil end
+        local root = ch:FindFirstChild("HumanoidRootPart") or ch:FindFirstChild("LowerTorso") or ch:FindFirstChild("Torso")
+        if not root or not root:IsA("BasePart") then return nil end
+        local p = root.Position
+        if p.X ~= p.X or p.Y ~= p.Y or p.Z ~= p.Z then return nil end
+        if math.abs(p.X) > 1e6 or math.abs(p.Y) > 1e6 or math.abs(p.Z) > 1e6 then return nil end
+        if p.Y < VOID_Y or p.Y > MAX_Y then return nil end
+        return root, ch
+    end
+
+    local function stopRenderIfIdle()
+        if espLineEnabled or espBoxEnabled then return end
+        if renderConn then renderConn:Disconnect(); renderConn = nil end
+        hideFrom(linePool, 0)
+        hideFrom(boxPool, 0)
+    end
+
+    local function step()
+        local wantLine, wantBox = espLineEnabled == true, espBoxEnabled == true
+        if not wantLine and not wantBox then stopRenderIfIdle(); return end
+        local cam = workspace.CurrentCamera
+        if not cam then hideFrom(linePool, 0); hideFrom(boxPool, 0); return end
+        ensureLayer()
+        local vp = cam.ViewportSize
+        local myChar = LP.Character
+        local myRoot = myChar and (myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("LowerTorso") or myChar:FindFirstChild("Torso"))
+        local ox, oy
+        if wantLine and myRoot then
+            local f = cam:WorldToViewportPoint(myRoot.Position)
+            if f.Z > 0 then ox, oy = f.X, f.Y else ox, oy = vp.X / 2, vp.Y end
         end
-        local ok = pcall(function()
-            local activeCamera = workspace.CurrentCamera
-            local myChar = LP.Character
-            local myRoot = myChar and (myChar:FindFirstChild("LowerTorso") or myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("Torso"))
-            if not activeCamera or not myRoot then
-                if _espLineFrame then _espLineFrame.Visible = false end
-                return
-            end
-
-            local myPosition = myRoot.Position
-            _espLineState.scanElapsed = _espLineState.scanElapsed + (dt or 0)
-            local cachedRoot = _espLineState.targetRoot
-            local cachedCharacter = cachedRoot and cachedRoot.Parent
-            local cachedHumanoid = cachedCharacter and cachedCharacter:FindFirstChildOfClass("Humanoid")
-            local cachedValid = cachedRoot and cachedRoot.Parent and (not cachedHumanoid or cachedHumanoid.Health > 0)
-            if _espLineState.scanElapsed >= 0.12 or not cachedValid then
-                _espLineState.scanElapsed = 0
-                local closestRoot, closestDistanceSq = nil, math.huge
-                for _, otherPlayer in ipairs(Players:GetPlayers()) do
-                    if otherPlayer ~= LP then
-                        local character = otherPlayer.Character
-                        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-                        local root = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("LowerTorso") or character:FindFirstChild("Torso"))
-                        if root and root:IsA("BasePart") and (not humanoid or humanoid.Health > 0) then
-                            local delta = root.Position - myPosition
-                            local distanceSq = delta:Dot(delta)
-                            if distanceSq < closestDistanceSq then
-                                closestRoot, closestDistanceSq = root, distanceSq
-                            end
+        local lineCount, boxCount = 0, 0
+        for _, plr in ipairs(Players:GetPlayers()) do
+            local root, ch = targetOf(plr)
+            if root then
+                local pos = root.Position
+                if ox then
+                    local s = cam:WorldToViewportPoint(pos)
+                    local x, y = s.X, s.Y
+                    if s.Z < 0 then x = vp.X - x; y = vp.Y - y end
+                    lineCount = lineCount + 1
+                    local ln = linePool[lineCount]
+                    if not ln then ln = newLine(); linePool[lineCount] = ln end
+                    local dx, dy = x - ox, y - oy
+                    local len = math.sqrt(dx * dx + dy * dy)
+                    if len == len and len > 0 then
+                        ln.Size = UDim2.fromOffset(len, 2)
+                        ln.Position = UDim2.fromOffset((ox + x) / 2, (oy + y) / 2)
+                        ln.Rotation = math.deg(math.atan2(dy, dx))
+                        ln.Visible = true
+                    else
+                        ln.Visible = false
+                    end
+                end
+                if wantBox then
+                    local head = ch:FindFirstChild("Head")
+                    local top = cam:WorldToViewportPoint((head and head.Position or pos) + Vector3.new(0, 1.6, 0))
+                    local bottom = cam:WorldToViewportPoint(pos - Vector3.new(0, 3, 0))
+                    if top.Z > 0 and bottom.Z > 0 then
+                        local h = math.abs(bottom.Y - top.Y)
+                        local w = h * 0.55
+                        if h == h and h > 1 then
+                            boxCount = boxCount + 1
+                            local bx = boxPool[boxCount]
+                            if not bx then bx = newBox(); boxPool[boxCount] = bx end
+                            bx.Size = UDim2.fromOffset(w, h)
+                            bx.Position = UDim2.fromOffset((top.X + bottom.X) / 2 - w / 2, math.min(top.Y, bottom.Y))
+                            bx.Visible = true
                         end
                     end
                 end
-                _espLineState.targetRoot = closestRoot
             end
-
-            local closestRoot = _espLineState.targetRoot
-            if not closestRoot or not closestRoot.Parent then
-                if _espLineFrame then _espLineFrame.Visible = false end
-                return
-            end
-            local closestPosition = closestRoot.Position
-
-            local from = activeCamera:WorldToViewportPoint(myPosition - Vector3.new(0, myRoot.Size.Y * 0.35, 0))
-            local to, targetOnScreen = activeCamera:WorldToViewportPoint(closestPosition)
-            local viewport = activeCamera.ViewportSize
-            local fromPoint = Vector2.new(from.X, from.Y)
-            local targetPoint = Vector2.new(to.X, to.Y)
-
-            if not targetOnScreen or to.Z <= 0 then
-                local center = viewport * 0.5
-                local direction = targetPoint - center
-                if to.Z <= 0 then direction = -direction end
-                if direction.Magnitude < 0.001 then direction = Vector2.new(0, -1) end
-                local limit = Vector2.new(math.max(8, center.X - 8), math.max(8, center.Y - 8))
-                local scaleX = limit.X / math.max(math.abs(direction.X), 0.001)
-                local scaleY = limit.Y / math.max(math.abs(direction.Y), 0.001)
-                targetPoint = center + direction * math.min(scaleX, scaleY)
-            end
-
-            if from.Z <= 0 or fromPoint.X < 0 or fromPoint.X > viewport.X or fromPoint.Y < 0 or fromPoint.Y > viewport.Y then
-                fromPoint = Vector2.new(viewport.X * 0.5, viewport.Y - 8)
-            end
-
-            local delta = targetPoint - fromPoint
-            local midpoint = (fromPoint + targetPoint) * 0.5
-            _espLineFrame.Position = UDim2.fromOffset(midpoint.X, midpoint.Y)
-            _espLineFrame.Size = UDim2.fromOffset(math.max(delta.Magnitude, 1), 2)
-            _espLineFrame.Rotation = math.deg(math.atan2(delta.Y, delta.X))
-            _espLineFrame.BackgroundColor3 = getThemeColor()
-            _espLineFrame.Visible = true
-        end)
-        if not ok and _espLineFrame then
-            pcall(function() _espLineFrame.Visible = false end)
         end
-    end)
+        hideFrom(linePool, lineCount)
+        hideFrom(boxPool, boxCount)
+    end
+
+    local function ensureRender()
+        if renderConn then return end
+        ensureLayer()
+        renderConn = RunService.RenderStepped:Connect(function()
+            local ok = pcall(step)
+            if not ok then hideFrom(linePool, 0); hideFrom(boxPool, 0) end
+        end)
+    end
+
+    -- ESP Line: pink line from you to every enemy
+    function startESPLine()
+        espLineEnabled = true
+        ensureRender()
+    end
+    function stopESPLine()
+        espLineEnabled = false
+        stopRenderIfIdle()
+    end
+
+    -- ESP Box: pink box over every enemy
+    function startESPBox()
+        espBoxEnabled = true
+        ensureRender()
+    end
+    function stopESPBox()
+        espBoxEnabled = false
+        stopRenderIfIdle()
+    end
 end
 
 local _enemySpeedAcc = 0
@@ -4748,10 +4583,11 @@ function setupSpeedIndicator(char)
         if old then old:Destroy() end
     end
     speedLabel = nil
+    -- Compact head label: pink invite line on top, speed number only below it.
     local bb = Instance.new("BillboardGui", head)
     bb.Name = "VapserSpeedIndicator"
-    bb.Size = UDim2.fromOffset(136, 28)
-    bb.StudsOffset = Vector3.new(0, 3.5, 0)
+    bb.Size = UDim2.fromOffset(140, 37)
+    bb.StudsOffset = Vector3.new(0, 3.3, 0)
     bb.AlwaysOnTop = true
     bb.LightInfluence = 0
     bb.MaxDistance = 0
@@ -4759,45 +4595,36 @@ function setupSpeedIndicator(char)
     local card = Instance.new("Frame", bb)
     card.Name = "SpeedCard"
     card.Size = UDim2.fromScale(1, 1)
-    card.BackgroundColor3 = Color3.fromRGB(10, 14, 19)
-    card.BackgroundTransparency = 0.2
+    card.BackgroundTransparency = 1
     card.BorderSizePixel = 0
-    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
-    local border = Instance.new("UIStroke", card)
-    border.Color = getThemeColor()
-    border.Transparency = 0.62
-    border.Thickness = 1
-    VapserUI.speedStroke = border
+    VapserUI.speedStroke = nil
+    local invite = Instance.new("TextLabel", card)
+    invite.Name = "InviteLabel"
+    invite.Size = UDim2.new(1, 0, 0, 15)
+    invite.Position = UDim2.fromOffset(0, 0)
+    invite.BackgroundTransparency = 1
+    invite.Text = "discord.gg/vapserhub"
+    invite.TextColor3 = Color3.fromRGB(255, 95, 175)
+    invite.TextStrokeColor3 = Color3.fromRGB(15, 13, 13)
+    invite.TextStrokeTransparency = 0.3
+    invite.Font = Enum.Font.GothamBold
+    invite.TextSize = 12
+    invite.TextXAlignment = Enum.TextXAlignment.Center
+    invite.ZIndex = 3
     speedLabel = Instance.new("TextLabel", card)
     speedLabel.Name = "SpeedLabel"
-    speedLabel.Size = UDim2.new(1, -12, 1, 0)
-    speedLabel.Position = UDim2.fromOffset(6, 0)
+    speedLabel.Size = UDim2.new(1, 0, 0, 20)
+    speedLabel.Position = UDim2.fromOffset(0, 16)
     speedLabel.BackgroundTransparency = 1
-    speedLabel.Text = string.format("SPEED: %.1f", getActiveMoveSpeed())
-    speedLabel.TextColor3 = Color3.fromRGB(248, 245, 235)
+    speedLabel.Text = string.format("%.1f", getActiveMoveSpeed())
+    speedLabel.TextColor3 = Color3.fromRGB(255, 95, 175)
     speedLabel.TextStrokeColor3 = Color3.fromRGB(15, 13, 13)
-    speedLabel.TextStrokeTransparency = 0.4
-    speedLabel.Font = Enum.Font.GothamMedium
-    speedLabel.TextSize = 11
+    speedLabel.TextStrokeTransparency = 0.3
+    speedLabel.Font = Enum.Font.GothamBold
+    speedLabel.TextSize = 16
     speedLabel.TextXAlignment = Enum.TextXAlignment.Center
     speedLabel.ZIndex = 3
-    local tag = Instance.new("BillboardGui", head)
-    tag.Name = "VapserDiscordTag"
-    tag.Size = UDim2.fromOffset(210, 24)
-    tag.StudsOffset = Vector3.new(0, 5.1, 0)
-    tag.AlwaysOnTop = true
-    tag.LightInfluence = 0
-    tag.MaxDistance = 0
-    local text = Instance.new("TextLabel", tag)
-    text.Size = UDim2.fromScale(1, 1)
-    text.BackgroundTransparency = 1
-    text.Text = "Vapser"
-    text.TextColor3 = getThemeColor()
-    text.TextStrokeColor3 = Color3.fromRGB(5, 7, 10)
-    text.TextStrokeTransparency = 0.2
-    text.Font = Enum.Font.GothamBold
-    text.TextSize = 15
-    VapserUI.discordLabel = text
+    VapserUI.discordLabel = nil
 
 end
 
@@ -5830,276 +5657,32 @@ function executeDropWithToggle(setVisual)
     end)
 end
 
-local _alSaved = setmetatable({}, { __mode = "k" })
-local _alDetached = {}
-local _alAnimators = setmetatable({}, { __mode = "k" })
-local _alStoppedTracks = setmetatable({}, { __mode = "k" })
-local _alGeneration = 0
-local _alScanCancel = nil
-local _alConns = {}
-local _alLightOrig = nil
+-- Anti Lag (ported from the Vampire hub script: enableAntiLag / disableAntiLag).
+-- Differences from the original: real Lighting values are saved and restored on disable
+-- (the original restored hardcoded defaults), and the world scan runs in its own thread so
+-- calling enableAntiLag() never blocks the caller.
 local _alRunning = false
+local _alConn = nil
+local _alGeneration = 0
+local _alOrig = nil
+local _alDisabledEffects = {}
 
-local AL_LOW_FLAGS = {
-    {"DFIntClusterSenderMaxJoinBandwidthBps", "2100000000"},
-    {"DFIntClusterSenderMaxUpdateBandwidthBps", "2100000000"},
-    {"DFIntServerFramesBetweenJoins", "1"},
-    {"DFIntRaknetBandwidthInfluxHundredthsPercentageV2", "10000"},
-    {"DFIntConnectionMTUSize", "1400"},
-    {"FIntRakNetResendBufferArrayLength", "1024"},
-    {"DFIntRakNetNakResendDelayMsMax", "1"},
-    {"DFIntWaitOnUpdateNetworkLoopEndedMS", "100"},
-    {"DFIntWaitOnRecvFromLoopEndedMS", "100"},
-    {"DFIntLargePacketQueueSizeCutoffMB", "1000"},
-    {"DFIntSendRakNetStatsInterval", "2147483647"},
-    {"DFIntRakNetLoopMs", "1"},
-    {"DFIntRakNetSelectTimeoutMs", "1"},
-    {"DFIntNetworkClusterPacketCacheNumParallelTasks", "8"},
-    {"DFIntReplicationDataCacheNumParallelTasks", "8"},
-    {"DFIntMegaReplicatorNumParallelTasks", "16"},
-    {"DFIntMaxProcessPacketsStepsPerCyclic", "512"},
-    {"DFIntMaxProcessPacketsStepsAccumulated", "0"},
-    {"DFIntMaxProcessPacketsJobScaling", "1000"},
-    {"DFIntClientPacketMaxFrameMicroseconds", "200000"},
-    {"DFIntClientPacketExcessMicroseconds", "10000"},
-    {"DFIntClientPacketMinMicroseconds", "1"},
-    {"DFIntClientPacketMaxDelayMs", "1"},
-    {"DFIntMaxWaitTimeBeforeForcePacketProcessMS", "1"},
-    {"DFIntMaxFrameBufferSize", "4"},
-    {"DFIntBufferCompressionThreshold", "100"},
-    {"DFIntOverrideISRReplicatorStepBandwidthBytes", "131072"},
-    {"DFIntTaskSchedulerJobInitThreads", "8"},
-    {"DFIntTaskSchedulerJobInGameThreads", "8"},
-    {"FIntTaskSchedulerAutoThreadLimit", "16"},
-    {"FIntTaskSchedulerAsyncTasksMinimumThreadCount", "4"},
-    {"DFIntRuntimeConcurrency", "16"},
-    {"FIntSimWorldTaskQueueParallelTasks", "20"},
-    {"DFIntHttpBatchLimit", "256"},
-    {"FIntHttpBatchLimit", "256"},
-    {"DFIntHttpCurlConnectionCacheSize", "512"},
-    {"FIntDefaultMeshCacheSizeMB", "512"},
-    {"DFIntMemCacheMaxCapacityMB", "256"},
-    {"DFIntNumAssetsMaxToPreload", "1"},
-    {"DFFlagEnableSoundPreloading", "false"},
-    {"FFlagSlimContentProvider", "true"},
-    {"DFFlagDebugSkipMeshVoxelizer", "true"},
-    {"DFFlagTextureQualityOverrideEnabled", "true"},
-    {"DFIntTextureQualityOverride", "0"},
-    {"FIntDebugTextureManagerSkipMips", "7"},
-    {"DFIntDebugLimitMinTextureResolutionWhenSkipMips", "8"},
-    {"FFlagTM2SkipMipsForUnstreamable2", "true"},
-    {"DFFlagDoNotSkipMipsBasedOnSystemMemoryPS", "true"},
-    {"FFlagRenderUseTextureManager224", "false"},
-    {"DFIntDebugFRMQualityLevelOverride", "1"},
-    {"DFFlagDebugPauseVoxelizer", "true"},
-    {"FFlagFastGPULightCulling3", "true"},
-    {"FIntRenderLocalLightFadeInMs", "0"},
-    {"FIntRenderLocalLightUpdatesMax", "1"},
-    {"FIntRenderShadowmapBias", "0"},
-    {"FIntSSAOMipLevels", "0"},
-    {"FIntDebugForceMSAASamples", "1"},
-    {"FIntDebugFRMOptionalMSAALevelOverride", "0"},
-    {"FIntRobloxGuiBlurIntensity", "0"},
-    {"FIntFRMMinGrassDistance", "0"},
-    {"FIntFRMMaxGrassDistance", "0"},
-    {"DFFlagCoreScriptTelemetry2", "false"},
-    {"DFFlagBrowserTrackerIdTelemetryEnabled", "false"},
-    {"FFlagPerfDataOnTelemetryV2", "false"},
-    {"FFlagSendRenderFidelityTelemetry2", "false"},
-    {"FFlagEnableTelemetryServiceMemoryCPUInfo", "false"},
-    {"DFIntTelemetryProfilerHundredthsPercentage", "0"},
-    {"FIntTelemetryProfilerFrequency", "0"},
-    {"FIntPerformanceTelemetryQueueProcessLimit", "0"},
-    {"DFIntContentProviderPreloadHangTelemetryHundredthsPercentage", "0"},
-}
-
-local function _alApplyLowFlags()
-    local env = (getgenv and getgenv()) or _G
-    local setter = rawget(env, "setfflag") or rawget(_G, "set_fflag")
-    local getter = rawget(env, "getfflag") or rawget(_G, "get_fflag")
-    if type(setter) ~= "function" then return end
-    for _, flag in ipairs(AL_LOW_FLAGS) do
-        local canSet = true
-        if type(getter) == "function" then
-            local ok, current = pcall(getter, flag[1])
-            canSet = ok and current ~= nil
-        end
-        if canSet then pcall(setter, flag[1], tostring(flag[2])) end
-    end
-end
-
-local function _alSaveLighting()
-    if _alLightOrig then return end
-    _alLightOrig = {
-        Brightness = Lighting.Brightness,
-        ClockTime = Lighting.ClockTime,
-        OutdoorAmbient = Lighting.OutdoorAmbient,
-        Ambient = Lighting.Ambient,
-        GlobalShadows = Lighting.GlobalShadows,
-        EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
-        EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
-        FogStart = Lighting.FogStart,
-        FogEnd = Lighting.FogEnd,
-    }
-end
-
-local function _alApplyLowPermanentSettings()
-    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+local function _alDerender(i)
     pcall(function()
-        UserSettings():GetService("UserGameSettings").SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
-    end)
-    pcall(function()
-        Lighting.GlobalShadows = false
-        Lighting.EnvironmentDiffuseScale = 0.35
-        Lighting.EnvironmentSpecularScale = 0.35
-        Lighting.FogStart = 0
-        Lighting.FogEnd = 1e10
-        Lighting.Brightness = math.max(tonumber(Lighting.Brightness) or 2, 2.5)
-        local amb = Lighting.Ambient
-        local out = Lighting.OutdoorAmbient
-        Lighting.Ambient = Color3.fromRGB(math.max(amb.R * 255, 145), math.max(amb.G * 255, 145), math.max(amb.B * 255, 145))
-        Lighting.OutdoorAmbient = Color3.fromRGB(math.max(out.R * 255, 155), math.max(out.G * 255, 155), math.max(out.B * 255, 155))
-    end)
-    pcall(function()
-        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-        if atmosphere then
-            atmosphere.Density = 0
-            atmosphere.Glare = 0
-            atmosphere.Haze = 0
-        end
-    end)
-    pcall(function()
-        local terrain = workspace:FindFirstChildOfClass("Terrain")
-        if terrain then
-            terrain.Decoration = false
-            terrain.WaterWaveSize = 0
-            terrain.WaterWaveSpeed = 0
-            terrain.WaterReflectance = 0
-            local clouds = terrain:FindFirstChildOfClass("Clouds")
-            if clouds then clouds.Enabled = false end
-        end
-    end)
-end
-
-local function _alChange(object, property, value)
-    pcall(function()
-        local original = object[property]
-        if original == value then return end
-        object[property] = value
-        local bucket = _alSaved[object]
-        if not bucket then bucket = {}; _alSaved[object] = bucket end
-        if not bucket[property] then bucket[property] = { value = original } end
-    end)
-end
-
-local function _alIsProtectedVisual(object)
-    local char = LP.Character
-    if char and (object == char or object:IsDescendantOf(char)) then return true end
-    if object:GetAttribute("_AdaptDuelsSky") == true then return true end
-    local parent = object
-    while parent and parent ~= workspace do
-        if parent:IsA("LayerCollector") or parent:IsA("GuiObject") or parent:IsA("GuiBase2d") then
-            return true
-        end
-        local name = parent.Name or ""
-        if name:match("^Crystal") or name:match("^Eclipse") or name:match("^ESP_")
-            or name:match("^BloodHounds") or name:match("^Vapser") then
-            return true
-        end
-        parent = parent.Parent
-    end
-    return false
-end
-
-function applyAntiLagDerender(obj)
-    pcall(function()
-        if not _alRunning then return end
-        if _alIsProtectedVisual(obj) then return end
-
-        if obj:IsA("Terrain") then
-            _alChange(obj, "Decoration", false)
-            _alChange(obj, "WaterWaveSize", 0)
-            _alChange(obj, "WaterWaveSpeed", 0)
-            _alChange(obj, "WaterReflectance", 0)
-            _alChange(obj, "WaterTransparency", 1)
-        end
-        if obj:IsA("BasePart") then
-            _alChange(obj, "Material", Enum.Material.Plastic)
-            _alChange(obj, "MaterialVariant", "")
-            _alChange(obj, "Reflectance", 0)
-            _alChange(obj, "CastShadow", false)
-            if obj:IsA("MeshPart") then
-                _alChange(obj, "TextureID", "")
-                _alChange(obj, "RenderFidelity", Enum.RenderFidelity.Performance)
-                _alChange(obj, "DoubleSided", false)
-            elseif obj:IsA("PartOperation") then
-                _alChange(obj, "RenderFidelity", Enum.RenderFidelity.Performance)
-            end
-        elseif obj:IsA("SpecialMesh") then
-            _alChange(obj, "TextureId", "")
-        elseif obj:IsA("SurfaceAppearance") then
-            _alDetached[obj] = true
-            _alChange(obj, "Parent", nil)
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            _alChange(obj, "Transparency", 1)
-            _alChange(obj, "Texture", "")
-        elseif obj:IsA("ParticleEmitter") then
-            _alChange(obj, "Enabled", false)
-            _alChange(obj, "Rate", 0)
-            pcall(function() obj:Clear() end)
-        elseif obj:IsA("Trail") then
-            _alChange(obj, "Enabled", false)
-            pcall(function() obj:Clear() end)
-        elseif obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke")
-            or obj:IsA("Sparkles") or obj:IsA("Light") or obj:IsA("PostEffect")
-            or obj:IsA("Clouds") then
-            _alChange(obj, "Enabled", false)
-        elseif obj:IsA("Atmosphere") then
-            _alChange(obj, "Density", 0)
-            _alChange(obj, "Haze", 0)
-            _alChange(obj, "Glare", 0)
-        elseif obj:IsA("Sky") then
-            for _, face in ipairs({"SkyboxBk","SkyboxDn","SkyboxFt","SkyboxLf","SkyboxRt","SkyboxUp","SunTextureId","MoonTextureId"}) do
-                _alChange(obj, face, "")
-            end
-            _alChange(obj, "StarCount", 0)
-            _alChange(obj, "CelestialBodiesShown", false)
-        elseif obj:IsA("Shirt") then
-            _alChange(obj, "ShirtTemplate", "")
-        elseif obj:IsA("Pants") then
-            _alChange(obj, "PantsTemplate", "")
-        elseif obj:IsA("ShirtGraphic") then
-            _alChange(obj, "Graphic", "")
-        elseif obj:IsA("Animator") then
-            if not _alAnimators[obj] then
-                local char = LP.Character
-                if not (char and obj:IsDescendantOf(char)) then
-                    _alAnimators[obj] = true
-                    local token = _alGeneration
-                    local ok, conn = pcall(function()
-                        return obj.AnimationPlayed:Connect(function(track)
-                            if not _alRunning or _alGeneration ~= token then return end
-                            task.defer(function()
-                                if _alRunning and _alGeneration == token then
-                                    pcall(function() track:Stop(0) end)
-                                end
-                            end)
-                        end)
-                    end)
-                    if ok then table.insert(_alConns, conn) end
-                    pcall(function()
-                        for _, track in ipairs(obj:GetPlayingAnimationTracks()) do
-                            if track.IsPlaying then
-                                _alStoppedTracks[track] = {
-                                    animator = obj,
-                                    time = track.TimePosition,
-                                    speed = track.Speed,
-                                }
-                                track:Stop(0)
-                            end
-                        end
-                    end)
-                end
+        if i:IsA("Accessory") or i:IsA("Hat") then
+            i:Destroy()
+        elseif i:IsA("BasePart") then
+            i.Material = Enum.Material.Plastic
+            i.Reflectance = 0
+            i.CastShadow = false
+        elseif i:IsA("Decal") or i:IsA("Texture") then
+            i.Transparency = 1
+        elseif i:IsA("ParticleEmitter") or i:IsA("Trail") or i:IsA("Beam") or i:IsA("Fire")
+            or i:IsA("Smoke") or i:IsA("Sparkles") then
+            i.Enabled = false
+        elseif i:IsA("AnimationController") or i:IsA("Animator") then
+            for _, track in ipairs(i:GetPlayingAnimationTracks()) do
+                pcall(function() track:Stop(0) end)
             end
         end
     end)
@@ -6111,110 +5694,66 @@ function enableAntiLag()
     antiLagEnabled = true
     _alGeneration = _alGeneration + 1
     local token = _alGeneration
+    _G._VH_antiLag = true
 
-    _alSaveLighting()
-    _alApplyLowFlags()
-    _alApplyLowPermanentSettings()
-
-    for _, delaySeconds in ipairs({2, 6, 12, 20}) do
-        task.delay(delaySeconds, function()
-            if _alRunning and _alGeneration == token then
-                _alApplyLowFlags()
+    _alOrig = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        OutdoorAmbient = Lighting.OutdoorAmbient,
+        GlobalShadows = Lighting.GlobalShadows,
+        FogEnd = Lighting.FogEnd,
+        EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
+        EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
+    }
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 10000000000
+        Lighting.Brightness = 1
+        Lighting.EnvironmentDiffuseScale = 0
+        Lighting.EnvironmentSpecularScale = 0
+    end)
+    _alDisabledEffects = {}
+    for _, e in ipairs(Lighting:GetChildren()) do
+        pcall(function()
+            if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect")
+                or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+                if e.Enabled then table.insert(_alDisabledEffects, e) end
+                e.Enabled = false
             end
         end)
     end
 
-    pcall(function() game:GetService("ReplicatedFirst"):RemoveDefaultLoadingScreen() end)
+    if _alConn then _alConn:Disconnect() end
+    _alConn = workspace.DescendantAdded:Connect(function(i)
+        if _alRunning and _alGeneration == token then _alDerender(i) end
+    end)
 
-    table.insert(_alConns, workspace.DescendantAdded:Connect(function(obj)
-        task.defer(function()
-            if _alRunning and _alGeneration == token then
-                pcall(applyAntiLagDerender, obj)
-            end
-        end)
-    end))
-    table.insert(_alConns, Lighting.DescendantAdded:Connect(function(obj)
-        task.defer(function()
-            if _alRunning and _alGeneration == token then
-                pcall(applyAntiLagDerender, obj)
-            end
-        end)
-    end))
-
-    local function walkBatched(roots, apply, shouldContinue)
-        task.spawn(function()
-            local pending = {}
-            for _, root in ipairs(roots) do
-                if root then
-                    local ok, children = pcall(function() return root:GetChildren() end)
-                    if ok then for _, c in ipairs(children) do table.insert(pending, c) end end
-                end
-            end
-            while #pending > 0 and _alRunning and _alGeneration == token and shouldContinue() do
-                local deadline = os.clock() + 0.0008
-                while #pending > 0 and os.clock() < deadline do
-                    local obj = table.remove(pending)
-                    pcall(apply, obj)
-                    local ok, children = pcall(function() return obj:GetChildren() end)
-                    if ok then for _, c in ipairs(children) do table.insert(pending, c) end end
-                end
-                RunService.Heartbeat:Wait()
-            end
-        end)
-    end
-
-    walkBatched({workspace, Lighting}, applyAntiLagDerender, function()
-        return _alRunning and _alGeneration == token
+    task.spawn(function()
+        local all = workspace:GetDescendants()
+        for k, obj in ipairs(all) do
+            if not _alRunning or _alGeneration ~= token then return end
+            _alDerender(obj)
+            if k % 180 == 0 then task.wait() end
+        end
     end)
 end
 
 function disableAntiLag()
-    if not _alRunning then
-        antiLagEnabled = false
-        return
-    end
     _alRunning = false
     antiLagEnabled = false
     _alGeneration = _alGeneration + 1
-
-    if _alScanCancel then pcall(_alScanCancel); _alScanCancel = nil end
-
-    for _, conn in ipairs(_alConns) do pcall(function() conn:Disconnect() end) end
-    _alConns = {}
-
-    for object, properties in pairs(_alSaved) do
-        for property, original in pairs(properties) do
-            pcall(function() object[property] = original.value end)
-        end
-    end
-    _alSaved = setmetatable({}, { __mode = "k" })
-    _alDetached = {}
-    _alAnimators = setmetatable({}, { __mode = "k" })
-
-    for track, state in pairs(_alStoppedTracks) do
+    _G._VH_antiLag = false
+    if _alConn then _alConn:Disconnect(); _alConn = nil end
+    if _alOrig then
         pcall(function()
-            if state.animator.Parent and not track.IsPlaying then
-                track:Play(0, 1, state.speed)
-                track.TimePosition = state.time
-            end
+            for property, value in pairs(_alOrig) do Lighting[property] = value end
         end)
+        _alOrig = nil
     end
-    _alStoppedTracks = setmetatable({}, { __mode = "k" })
-
-    if _alLightOrig then
-        pcall(function()
-            Lighting.Brightness = _alLightOrig.Brightness
-            Lighting.ClockTime = _alLightOrig.ClockTime
-            Lighting.OutdoorAmbient = _alLightOrig.OutdoorAmbient
-            Lighting.Ambient = _alLightOrig.Ambient
-            Lighting.GlobalShadows = _alLightOrig.GlobalShadows
-            Lighting.EnvironmentDiffuseScale = _alLightOrig.EnvironmentDiffuseScale
-            Lighting.EnvironmentSpecularScale = _alLightOrig.EnvironmentSpecularScale
-            Lighting.FogStart = _alLightOrig.FogStart
-            Lighting.FogEnd = _alLightOrig.FogEnd
-        end)
-        _alLightOrig = nil
+    for _, e in ipairs(_alDisabledEffects) do
+        pcall(function() if e.Parent then e.Enabled = true end end)
     end
+    _alDisabledEffects = {}
 end
 
 function applyStretchFOV(val)
@@ -6863,7 +6402,7 @@ function setupMovementAndIndicators(char)
         end
         if speedLabel and speedLabel.Parent then
             local displaySpeed = getActiveMoveSpeed()
-            speedLabel.Text = string.format("SPEED: %.1f", displaySpeed)
+            speedLabel.Text = string.format("%.1f", displaySpeed)
         end
     end)
     setupSpeedIndicator(char)
@@ -6906,8 +6445,8 @@ function stopAllBackgroundTasks()
     if TPBatState and TPBatState.enabled and tpBatSetEnabled then pcall(tpBatSetEnabled, false) end
     if unwalkEnabled then stopUnwalk() end
     if antiLagEnabled then disableAntiLag() end
-    if espEnabled then toggleESP(false) end
     if espLineEnabled then stopESPLine() end
+    if espBoxEnabled then stopESPBox() end
     if dropActive then stopDropBrainrot() end
     if bodyLockEnabled then stopBodyLock() end
     _blSuppressCount = 0
@@ -6971,8 +6510,8 @@ function buildConfigTable()
         carryMode = speedMode, batAimbotSpeed = BAT_AIMBOT_SPEED,
         dropMode = dropMode, stretchEnabled = stretchEnabled, stretchFOV = stretchFOV,
         uiScale = uiScaleValue, animPack = currentAnimPack,
-        espEnabled = espEnabled,
         espLineEnabled = espLineEnabled,
+        espBoxEnabled = espBoxEnabled,
         vividGraphics = vividGraphicsEnabled,
         hideButtons = hideButtonsEnabled,
         antiLag = antiLagEnabled,
@@ -7225,9 +6764,8 @@ function loadAllSettings()
     uiScaleValue = _clamp(num(data.uiScale, 90), 50, 150)
     if mainUIScale then mainUIScale.Scale = uiScaleValue / 100 end
     if pbScale then pbScale.Scale = uiScaleValue / 100 end
-    espEnabled = boolOr(data.espEnabled, false)
     espLineEnabled = boolOr(data.espLineEnabled, false)
-    if espEnabled then pcall(toggleESP, true) else pcall(toggleESP, false) end
+    espBoxEnabled = boolOr(data.espBoxEnabled, false)
 
     vividGraphicsEnabled = false
     hideButtonsEnabled = boolOr(data.hideButtons, false)
@@ -7346,8 +6884,8 @@ function forceResetUI()
     safeSet(setAntiLagVisual, false)
     safeSet(setLockUIVisual, false)
     safeSet(setInstaGrab, false)
-    safeSet(setESPVIsual, false)
     safeSet(setESPLineVisual, false)
+    safeSet(setESPBoxVisual, false)
     safeSet(setVividVisual, false)
     safeSet(setHideButtonsVisual, false)
     safeSet(bodyLockSetVisual, false)
@@ -7382,6 +6920,7 @@ function forceResetUI()
     if stopAntiBat then stopAntiBat() end
     if stopAntiFling then stopAntiFling() end
     if stopESPLine then stopESPLine() end
+    if stopESPBox then stopESPBox() end
     skyTheme = "Off"
     pcall(applyCustomSky, "Off")
     if skySelectorLabel then skySelectorLabel.Text = "Off" end
@@ -7450,8 +6989,8 @@ function resetToFactoryDefaults()
         InfiniteJump.setMode("hold")
         disableAutoBat()
         stopBodyLock()
-        if espEnabled then toggleESP(false) end
         if espLineEnabled and stopESPLine then stopESPLine() end
+        if espBoxEnabled and stopESPBox then stopESPBox() end
         if stretchEnabled then disableStretch() end
         if antiLagEnabled then disableAntiLag() end
         if vividGraphicsEnabled then disableVividGraphics() end
@@ -7492,7 +7031,7 @@ function resetToFactoryDefaults()
         uiScaleValue = 90
         if VapserUI.fit then VapserUI.fit() end
         if pbScale then pbScale.Scale = 1 end
-        espEnabled = false; espLineEnabled = false; vividGraphicsEnabled = false; hideButtonsEnabled = false
+        espLineEnabled = false; espBoxEnabled = false; vividGraphicsEnabled = false; hideButtonsEnabled = false
         bodyLockEnabled = false; bodyLockRange = 20
         backgroundIndex = 1; backgroundImageTransparency = 0; backgroundMode = "Background 1"
         floatingButtonScale = 1
@@ -8812,7 +8351,7 @@ function buildGui()
     border.Name = "MainBorder"
     mainUIScale = VapserUI.new("UIScale", main, {Scale = uiScaleValue / 100})
     -- SPEEX-style thin left rail
-    local LEFT_W = 46
+    local LEFT_W = 64
     local sidePanel = VapserUI.new("Frame", main, {Name = "SidePanel", Size = UDim2.new(0, LEFT_W, 1, 0),
         BackgroundColor3 = Color3.fromRGB(8, 8, 10), BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 12})
     local bg = VapserUI.new("ImageLabel", sidePanel, {Name = "SideImage", Size = UDim2.new(1, 0, 1, 0),
@@ -8837,7 +8376,7 @@ function buildGui()
     local tabRail = VapserUI.new("Frame", sidePanel, {Name = "TabRail", Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 14})
     local upBtn = VapserUI.new("TextButton", tabRail, {Name = "Up", Size = UDim2.new(1, 0, 0, 36),
-        Position = UDim2.new(0, 0, 0.5, -90), Text = "⌃", TextSize = 18, Font = Enum.Font.GothamBold,
+        Position = UDim2.new(0, 0, 0.5, -90), Text = "", TextSize = 18, Font = Enum.Font.GothamBold,
         TextColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1, BorderSizePixel = 0,
         AutoButtonColor = false, ZIndex = 15})
     local railLabel = VapserUI.new("TextLabel", tabRail, {Name = "RailLabel", Size = UDim2.new(1, 0, 0, 120),
@@ -8846,9 +8385,17 @@ function buildGui()
         TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
         Rotation = -90, ZIndex = 15})
     local downBtn = VapserUI.new("TextButton", tabRail, {Name = "Down", Size = UDim2.new(1, 0, 0, 36),
-        Position = UDim2.new(0, 0, 0.5, 54), Text = "⌄", TextSize = 18, Font = Enum.Font.GothamBold,
+        Position = UDim2.new(0, 0, 0.5, 54), Text = "", TextSize = 18, Font = Enum.Font.GothamBold,
         TextColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1, BorderSizePixel = 0,
         AutoButtonColor = false, ZIndex = 15})
+    -- Plain ASCII chevrons (the old unicode glyphs rendered as empty boxes in this font).
+    -- "<" rotated 90 deg clockwise points up, ">" rotated 90 deg clockwise points down.
+    for _, pair in ipairs({{upBtn, "<"}, {downBtn, ">"}}) do
+        VapserUI.new("TextLabel", pair[1], {Name = "Chevron", Size = UDim2.fromOffset(30, 30),
+            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+            BackgroundTransparency = 1, Text = pair[2], TextSize = 24, Font = Enum.Font.GothamBlack,
+            TextColor3 = Color3.fromRGB(255, 255, 255), Rotation = 90, ZIndex = 16})
+    end
     scriptLogoRef = railLabel
     VapserUI.titleGradient = nil
     local titleRule = VapserUI.new("Frame", sidePanel, {Name = "TitleRule", Visible = false})
@@ -8863,9 +8410,13 @@ function buildGui()
         Position = UDim2.fromOffset(16, 58), Text = "", BackgroundColor3 = Color3.fromRGB(10, 14, 19),
         BorderSizePixel = 0, AutoButtonColor = false, Visible = false, ZIndex = 25})
     VapserUI.round(miniBtn, 11)
-    VapserUI.stroke(miniBtn, getThemeColor(), 0.35, 1.2)
     VapserUI.new("UIGradient", miniBtn, {Rotation = 0, Color = ColorSequence.new(Color3.fromRGB(34, 28, 24), Color3.fromRGB(11, 15, 20))})
-    local miniTitle = VapserUI.text(miniBtn, "Vapser", UDim2.fromOffset(16, 0), UDim2.fromOffset(100, 46), 15, WHITE, 28)
+    local miniDot = VapserUI.new("Frame", miniBtn, {Name = "PinkDot", Size = UDim2.fromOffset(14, 14),
+        AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 14, 0.5, 0),
+        BackgroundColor3 = Color3.fromRGB(255, 95, 175), BorderSizePixel = 0, ZIndex = 28})
+    VapserUI.round(miniDot, 7)
+    miniDot:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
+    local miniTitle = VapserUI.text(miniBtn, "Vapser", UDim2.fromOffset(36, 0), UDim2.fromOffset(86, 46), 15, WHITE, 28)
     miniTitle.Font = Enum.Font.GothamBlack
     VapserUI.text(miniBtn, "›", UDim2.new(1, -22, 0, 8), UDim2.fromOffset(17, 30), 22, WHITE, 28)
     miniBackgroundImage = nil
@@ -9503,9 +9054,11 @@ function buildGui()
     end
 
     mkSect(visualPage, "Overlays")
-    setESPVIsual = mkToggle(visualPage, "Player ESP", function(on) toggleESP(on) end)
     setESPLineVisual = mkToggle(visualPage, "ESP Line", function(on)
         if on then startESPLine() else stopESPLine() end
+    end)
+    setESPBoxVisual = mkToggle(visualPage, "ESP Box", function(on)
+        if on then startESPBox() else stopESPBox() end
     end)
 
 
@@ -10448,19 +10001,19 @@ function updateUIFromLoaded()
         if setAntiLagVisual then setAntiLagVisual(false) end
         disableAntiLag()
     end
-    if espEnabled then
-        toggleESP(true)
-        if setESPVIsual then setESPVIsual(true) end
-    else
-        toggleESP(false)
-        if setESPVIsual then setESPVIsual(false) end
-    end
     if espLineEnabled then
         if setESPLineVisual then setESPLineVisual(true) end
         startESPLine()
     else
         if setESPLineVisual then setESPLineVisual(false) end
         stopESPLine()
+    end
+    if espBoxEnabled then
+        if setESPBoxVisual then setESPBoxVisual(true) end
+        startESPBox()
+    else
+        if setESPBoxVisual then setESPBoxVisual(false) end
+        stopESPBox()
     end
 
     if vividGraphicsEnabled then
@@ -10834,129 +10387,6 @@ do
         return false
     end
 
-end
-
-do
-    local SwordPlayers = game:GetService("Players")
-    local SwordLP = SwordPlayers.LocalPlayer
-
-    local KATANA_MESH = "rbxassetid://13528902482"
-    local KATANA_TEXTURE = "rbxassetid://13528902373"
-
-    local function isBatTool(tool)
-        if not tool or not tool:IsA("Tool") then return false end
-        local name = tool.Name:lower()
-        return name:find("bat", 1, true) ~= nil or name:find("slap", 1, true) ~= nil
-    end
-
-    local function applySwordVisual(tool)
-        if not isBatTool(tool) then return end
-        local handle = tool:FindFirstChild("Handle")
-        if not handle then return end
-
-        local oldReplica = handle:FindFirstChild("ShelSwordReplica")
-        if oldReplica then oldReplica:Destroy() end
-
-        local model = Instance.new("Model")
-        model.Name = "ShelSwordReplica"
-
-        local part = Instance.new("Part")
-        part.Name = "SwordPart"
-        part.Size = Vector3.new(1, 1, 1)
-        part.Transparency = 0
-        part.CanCollide = false
-        part.CanTouch = false
-        part.CanQuery = false
-        part.Massless = true
-        part.Anchored = false
-        part.Parent = model
-
-        local mesh = Instance.new("SpecialMesh")
-        mesh.MeshType = Enum.MeshType.FileMesh
-        mesh.MeshId = KATANA_MESH
-        
-        mesh.TextureId = ""
-        mesh.Scale = Vector3.new(1.4, 1.4, 1.4)
-        mesh.Parent = part
-
-        local ORANGE = Color3.fromRGB(255, 140, 0)
-        part.Material = Enum.Material.Neon
-        part.Color = ORANGE
-        part.Reflectance = 0.15
-        mesh.VertexColor = Vector3.new(1, 0.55, 0)
-
-        local glow = Instance.new("PointLight")
-        glow.Name = "ShelSwordGlow"
-        glow.Brightness = 4
-        glow.Range = 14
-        glow.Color = ORANGE
-        glow.Parent = part
-
-        model.PrimaryPart = part
-        model.Parent = handle
-        part.CFrame = handle.CFrame * (
-            CFrame.new(0, 0.6, 0)
-            * CFrame.Angles(math.rad(270), math.rad(180), math.rad(180))
-        )
-
-        local weld = Instance.new("WeldConstraint")
-        weld.Part0 = handle
-        weld.Part1 = part
-        weld.Parent = part
-
-        pcall(function() handle.Transparency = 1 end)
-    end
-
-    local function watchContainer(container)
-        if not container then return end
-
-        for _, child in ipairs(container:GetChildren()) do
-            if isBatTool(child) then
-                task.defer(applySwordVisual, child)
-            end
-        end
-
-        if not container:GetAttribute("ShelSwordVisualWatch") then
-            container:SetAttribute("ShelSwordVisualWatch", true)
-            container.ChildAdded:Connect(function(child)
-                if not isBatTool(child) then return end
-                task.wait()
-                applySwordVisual(child)
-            end)
-        end
-    end
-
-    local function scanSwordTools()
-        watchContainer(SwordLP:FindFirstChildOfClass("Backpack"))
-        watchContainer(SwordLP.Character)
-    end
-
-    scanSwordTools()
-
-    SwordLP.ChildAdded:Connect(function(child)
-        if child:IsA("Backpack") then
-            watchContainer(child)
-        end
-    end)
-
-    SwordLP.CharacterAdded:Connect(function(character)
-        task.wait(0.5)
-        watchContainer(character)
-        scanSwordTools()
-    end)
-
-    task.spawn(function()
-        while task.wait(1) do
-            scanSwordTools()
-        end
-    end)
-
-    _G.ShelSwordVisual = {
-        apply = scanSwordTools,
-        mesh = KATANA_MESH,
-        texture = KATANA_TEXTURE,
-        rainbow = true,
-    }
 end
 
 do
