@@ -190,6 +190,10 @@ NS = 60
 CS = 29
 LAGGER_SPEED = 15
 LAGGER_CARRY_SPEED = 24.5
+-- Auto Carry (Volt v21) steal speeds: Config.normalStealSpeed / carryStealSpeed / laggerStealSpeed defaults
+STEAL_NORMAL_SPEED = 30
+STEAL_CARRY_SPEED = 20
+STEAL_LAGGER_SPEED = 10.1
 MEDUSA_COOLDOWN = 25
 BAT_AIMBOT_SPEED = 55
 BYPASS_AIMBOT_SPEED = 55
@@ -2336,6 +2340,8 @@ _blRestoreTimer = nil
 _blSmoothRestore = false
 
 savedProgressBarPos = nil
+stealBarScaleValue = 100
+stealBarScaleBox = nil
 savedButtonPositions = {}
 savedMobilePanelPos = nil
 
@@ -2539,6 +2545,9 @@ end
             carrySpeed = CS,
             laggerSpeed = LAGGER_SPEED,
             laggerCarrySpeed = LAGGER_CARRY_SPEED,
+            normalStealSpeed = STEAL_NORMAL_SPEED,
+            carryStealSpeed = STEAL_CARRY_SPEED,
+            laggerStealSpeed = STEAL_LAGGER_SPEED,
             speedToggled = false,
             laggerMode = 0,
             autoCarryEnabled = false,
@@ -2563,16 +2572,23 @@ end
             _rayParams = nil,
             _rayFilter = nil,
             _rayFilterTime = 0,
+            -- Volt v21: vxGetStealSpeed
+            getStealSpeed = function(self)
+                if self.laggerMode ~= 0 then
+                    return self.laggerStealSpeed
+                end
+                if self.speedToggled then
+                    return self.carryStealSpeed
+                end
+                return self.normalStealSpeed
+            end,
             getActiveSpeed = function(self)
                 if self._state and (self._state.autoLeftEnabled or self._state.autoRightEnabled) then
                     return self.normalSpeed
                 end
                 if self:isAutoCarryActive() then
-                    -- stealing: Lagger / Lagger Carry -> Lagger Carry speed, otherwise -> Carry speed
-                    if self.laggerMode ~= 0 then
-                        return self.laggerCarrySpeed
-                    end
-                    return self.carrySpeed
+                    -- Volt v21: while Auto Carry is active the steal speed is used
+                    return self:getStealSpeed()
                 end
                 if self.laggerMode == 1 then
                     return self.laggerSpeed
@@ -2588,10 +2604,7 @@ end
             getStatus = function(self)
                 if not (self._state and (self._state.autoLeftEnabled or self._state.autoRightEnabled)) then
                     if self:isAutoCarryActive() then
-                        if self.laggerMode ~= 0 then
-                            return "AUTO CARRY", self.laggerCarrySpeed
-                        end
-                        return "AUTO CARRY", self.carrySpeed
+                        return "AUTO CARRY", self:getStealSpeed()
                     end
                     if self.laggerMode == 1 then
                         return "LAGGER", self.laggerSpeed
@@ -2646,9 +2659,9 @@ end
                     parent:SetNetworkOwner(LP)
                 end)
             end
-            -- ===== Auto Carry (ported from VoltHub v20: "Auto Carry On Steal") =====
-            -- Replaces the old proximity "soft steal" scanner. Speed switches to the Carry / Lagger Carry speed while the
-            -- player is stealing / holding a brainrot, and returns to the normal/carry/lagger speed afterwards.
+            -- ===== Auto Carry (VoltHub v21 "Auto Carry On Steal") =====
+            -- Same state machine as Volt (Stealing attribute latch, carry detection, 0.75s grace, pickup watch, duel
+            -- countdown gate). While active the speed is the Volt steal speed: Lagger / Carry / Normal Steal Speed.
             local IGNORED_TOOL_WORDS = {"bat", "slap", "medusa", "head", "stone"}
             local BODY_PIECE_NAMES = {
                 animate = true, animsaves = true, health = true, rig = true, ["body colors"] = true,
@@ -3025,6 +3038,9 @@ end
                     deltaTime236.carrySpeed = CS
                     deltaTime236.laggerSpeed = LAGGER_SPEED
                     deltaTime236.laggerCarrySpeed = LAGGER_CARRY_SPEED
+                    deltaTime236.normalStealSpeed = STEAL_NORMAL_SPEED
+                    deltaTime236.carryStealSpeed = STEAL_CARRY_SPEED
+                    deltaTime236.laggerStealSpeed = STEAL_LAGGER_SPEED
                     deltaTime236.speedToggled = speedMode
                     deltaTime236.laggerMode = laggerCarryToggled and 2 or (laggerToggled and 1 or 0)
                     deltaTime236._state = {autoLeftEnabled = autoLeftEnabled, autoRightEnabled = autoRightEnabled}
@@ -3059,6 +3075,18 @@ end
     end
     VapserVenixCarry.setLaggerCarrySpeed = function(self, value)
         self.laggerCarrySpeed = _clamp(value, 0.1, 500)
+    end
+    VapserVenixCarry.setNormalStealSpeed = function(self, value)
+        STEAL_NORMAL_SPEED = _clamp(value, 0.1, 500)
+        self.normalStealSpeed = STEAL_NORMAL_SPEED
+    end
+    VapserVenixCarry.setCarryStealSpeed = function(self, value)
+        STEAL_CARRY_SPEED = _clamp(value, 0.1, 500)
+        self.carryStealSpeed = STEAL_CARRY_SPEED
+    end
+    VapserVenixCarry.setLaggerStealSpeed = function(self, value)
+        STEAL_LAGGER_SPEED = _clamp(value, 0.1, 500)
+        self.laggerStealSpeed = STEAL_LAGGER_SPEED
     end
     VapserVenixCarry.toggleCarryMode = function(self)
         self.speedToggled = not self.speedToggled
@@ -3548,8 +3576,11 @@ lastDropTime = 0
 lastMoveDir = _V3new(0,0,0)
 origFOV = nil
 fovEnabled = false
-fovValue = 70
+fovValue = 80
 customFovConn = nil
+customFovSavedFOV = nil
+customFovBox = nil
+setCustomFovVisual = nil
 
 _anyKeyListening = false
 _aimbotConn = nil
@@ -3582,6 +3613,7 @@ stealHud = {value = 0, state = "READY", statsText = "-- FPS  ·  PING: -- MS"}
 speedLabel = nil
 modeValLbl = nil
 normalBox, carryBox, laggerBox, lagger2Box, radInput, batSpeedBox, uiScaleBox = nil, nil, nil, nil, nil, nil, nil
+normalStealBox, carryStealBox, laggerStealBox = nil, nil, nil
 modeSelectBtn, dropModeBtnRef = nil, nil
 autoBatSetVisual, autoLeftSetVisual, autoRightSetVisual, setBatCounterVisual, setMedusaVisual = nil, nil, nil, nil, nil
 setAntiRagVisual, setUnwalkVisual, setAntiLagVisual, setLockUIVisual, setInstaGrab = nil, nil, nil, nil, nil
@@ -5824,6 +5856,7 @@ function disableAntiLag()
 end
 
 function applyStretchFOV(val)
+    if fovEnabled then return end
     local cam = workspace.CurrentCamera
     if cam then pcall(function() cam.FieldOfView = val end) end
 end
@@ -5833,7 +5866,7 @@ function enableStretch()
     stretchEnabled = true
     local cam = workspace.CurrentCamera
     if not cam then return end
-    origFOV = cam.FieldOfView or 70
+    origFOV = (fovEnabled and customFovSavedFOV) or cam.FieldOfView or 70
     applyStretchFOV(stretchFOV)
     stretchConn = RunService.RenderStepped:Connect(function()
         if not stretchEnabled then
@@ -5856,7 +5889,54 @@ function disableStretch()
     if stretchConn then stretchConn:Disconnect(); stretchConn = nil end
     if stretchFovConn then stretchFovConn:Disconnect(); stretchFovConn = nil end
     local cam = workspace.CurrentCamera
-    if cam then pcall(function() cam.FieldOfView = origFOV or 70 end) end
+    if cam and not fovEnabled then pcall(function() cam.FieldOfView = origFOV or 70 end) end
+end
+
+function applyCustomFov()
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+    pcall(function()
+        local val = fovValue
+        cam.FieldOfView = math.min(val, 120)
+        local focusPos = cam.Focus.Position
+        local offset = focusPos - cam.CFrame.Position
+        if offset.Magnitude > 1e-4 then
+            local scale = val / (customFovSavedFOV or 70)
+            cam.CFrame = CFrame.new(focusPos - offset * scale, focusPos)
+        end
+    end)
+end
+
+function enableCustomFov()
+    fovEnabled = true
+    if customFovConn then return end
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+    customFovSavedFOV = (stretchEnabled and origFOV) or cam.FieldOfView or 70
+    RunService:BindToRenderStep("Vapser_CustomFOV", Enum.RenderPriority.Camera.Value + 1, function()
+        if not fovEnabled then return end
+        applyCustomFov()
+    end)
+    customFovConn = "Vapser_CustomFOV"
+end
+
+function disableCustomFov()
+    fovEnabled = false
+    local wasActive = customFovConn ~= nil
+    if customFovConn then
+        pcall(function() RunService:UnbindFromRenderStep(customFovConn) end)
+        customFovConn = nil
+    end
+    if wasActive then
+        local cam = workspace.CurrentCamera
+        if cam then
+            pcall(function()
+                if stretchEnabled then cam.FieldOfView = stretchFOV
+                else cam.FieldOfView = customFovSavedFOV or 70 end
+            end)
+        end
+    end
+    customFovSavedFOV = nil
 end
 
 local function saveLightingState()
@@ -6178,6 +6258,18 @@ function VapserUI.colorSectionIcon(root, color)
     end
 end
 
+function VapserUI.hudWantFromSaved(t)
+    if type(t) ~= "table" then return nil end
+    local cam = Workspace.CurrentCamera
+    local vp = cam and cam.ViewportSize or Vector2.new(0, 0)
+    local function n(v)
+        v = tonumber(v)
+        if v == nil or v ~= v or v == math.huge or v == -math.huge then return 0 end
+        return v
+    end
+    return Vector2.new(n(t.XScale) * vp.X + n(t.XOffset), n(t.YScale) * vp.Y + n(t.YOffset))
+end
+
 function VapserUI.fit()
     if not mainUIScale or not main or not main.Parent then return end
     local cam = Workspace.CurrentCamera
@@ -6197,7 +6289,8 @@ function VapserUI.fit()
         local compact = viewport.X < 600 or viewport.X < viewport.Y * 1.18
         local right = main.Position.X.Offset + size.X + 14
         local room = viewport.X - right - 12
-        local hudScale = compact and math.min(1, (viewport.X - 24) / 380) or math.clamp(room / 380, 0.65, 1)
+        -- Manual size from Visual > Steal Bar Scale, capped so the bar never exceeds the screen width.
+        local hudScale = math.min(math.clamp((stealBarScaleValue or 100) / 100, 0.5, 2), math.max(0.25, (viewport.X - 12) / 380))
         VapserUI.hudScale.Scale = hudScale
         local hudWidth, hudHeight = 380 * hudScale, 35 * hudScale
         VapserUI.hudFitting = true
@@ -6310,7 +6403,7 @@ function applyFloatingButtonScale()
     end
 end
 
-local function drag(f, dragZoneHeight)
+local function drag(f, dragZoneHeight, onMove)
     local dn, ds, sp, di = false, nil, nil, nil
     local endConn = nil
     local zone = dragZoneHeight or 99999
@@ -6322,7 +6415,10 @@ local function drag(f, dragZoneHeight)
             endConn:Disconnect()
             endConn = nil
         end
-        if wasDragging then task.defer(function() pcall(saveAllSettings) end) end
+        if wasDragging then
+            if onMove then pcall(onMove, f) end
+            task.defer(function() pcall(saveAllSettings) end)
+        end
     end
     f.InputBegan:Connect(function(i)
         if uiLocked then return end
@@ -6358,6 +6454,7 @@ local function drag(f, dragZoneHeight)
             local nX = sp.X.Offset + (i.Position.X - ds.X)
             local nY = sp.Y.Offset + (i.Position.Y - ds.Y)
             f.Position = UDim2.new(sp.X.Scale, nX, sp.Y.Scale, nY)
+            if onMove then pcall(onMove, f) end
         end
     end)
 end
@@ -6502,6 +6599,7 @@ function stopAllBackgroundTasks()
     if stretchEnabled then disableStretch() end
     if stretchConn then stretchConn:Disconnect(); stretchConn = nil end
     if stretchFovConn then stretchFovConn:Disconnect(); stretchFovConn = nil end
+    disableCustomFov()
     if AntiRagdollV1.isRunning() then AntiRagdollV1.stop() end
     if AntiRagdollV2.Enabled then stopAntiRagdollV2() end
     if antiDieEnabled then AntiDieModule.stop() end
@@ -6570,6 +6668,7 @@ function buildConfigTable()
     local config = {
         normalSpeed = NS, carrySpeed = CS,
         laggerSpeed1 = LAGGER_SPEED, laggerSpeed2 = LAGGER_CARRY_SPEED,
+        normalStealSpeed = STEAL_NORMAL_SPEED, carryStealSpeed = STEAL_CARRY_SPEED, laggerStealSpeed = STEAL_LAGGER_SPEED,
         stealRadius = CONFIG.STEAL_RANGE,
         holdMin = CONFIG.HOLD_MIN, holdMax = CONFIG.HOLD_MAX, entryDelay = CONFIG.ENTRY_DELAY, cooldown = CONFIG.COOLDOWN, primeRange = CONFIG.PRIME_RANGE,
         antiRagdollMode = antiRagdollMode, antiDieEnabled = antiDieEnabled,
@@ -6582,6 +6681,7 @@ function buildConfigTable()
         laggerToggled = laggerToggled, laggerCarryToggled = laggerCarryToggled,
         carryMode = speedMode, batAimbotSpeed = BAT_AIMBOT_SPEED,
         dropMode = dropMode, stretchEnabled = stretchEnabled, stretchFOV = stretchFOV,
+        customFovEnabled = fovEnabled, customFovValue = fovValue,
         uiScale = uiScaleValue, animPack = currentAnimPack,
         espLineEnabled = espLineEnabled,
         espBoxEnabled = espBoxEnabled,
@@ -6600,6 +6700,7 @@ function buildConfigTable()
         batV2Key = {kb = KB.BatV2.kb and KB.BatV2.kb.Name, gp = KB.BatV2.gp and KB.BatV2.gp.Name},
         bodyLockEnabled = bodyLockEnabled, bodyLockRange = bodyLockRange,
         progressBarPos = savedProgressBarPos, lockUI = uiLocked,
+        stealBarScale = stealBarScaleValue,
         backgroundIndex = backgroundIndex,
         backgroundImageTransparency = backgroundImageTransparency,
         backgroundMode = backgroundMode, floatingButtonScale = floatingButtonScale,
@@ -6623,8 +6724,10 @@ function buildConfigTable()
             YOffset = basePos.Y.Offset,
         }
     end
-    if pbFrame then
-        config.progressBarPos = {XScale = pbFrame.Position.X.Scale, XOffset = pbFrame.Position.X.Offset, YScale = pbFrame.Position.Y.Scale, YOffset = pbFrame.Position.Y.Offset}
+    -- Save the position the user actually chose (hudWant), not the viewport-clamped one,
+    -- and never the transient default placed before the saved config was applied.
+    if pbFrame and VapserUI.hudWant then
+        config.progressBarPos = {XScale = 0, XOffset = VapserUI.hudWant.X, YScale = 0, YOffset = VapserUI.hudWant.Y}
     end
     if MobilePanel then
         config.mobilePanelPos = {XScale = 0, XOffset = 10, YScale = 0, YOffset = 0}
@@ -6786,6 +6889,9 @@ function loadAllSettings()
     CS                  = num(data.carrySpeed,        CS)
     LAGGER_SPEED        = num(data.laggerSpeed1,      LAGGER_SPEED)
     LAGGER_CARRY_SPEED  = num(data.laggerSpeed2,      LAGGER_CARRY_SPEED)
+    STEAL_NORMAL_SPEED  = num(data.normalStealSpeed,  STEAL_NORMAL_SPEED)
+    STEAL_CARRY_SPEED   = num(data.carryStealSpeed,   STEAL_CARRY_SPEED)
+    STEAL_LAGGER_SPEED  = num(data.laggerStealSpeed,  STEAL_LAGGER_SPEED)
     CONFIG.STEAL_RANGE  = num(data.stealRadius,       CONFIG.STEAL_RANGE)
     CONFIG.HOLD_MIN     = num(data.holdMin,           CONFIG.HOLD_MIN)
     CONFIG.HOLD_MAX     = num(data.holdMax,           CONFIG.HOLD_MAX)
@@ -6838,6 +6944,7 @@ function loadAllSettings()
     uiScaleValue = _clamp(num(data.uiScale, 90), 50, 150)
     if mainUIScale then mainUIScale.Scale = uiScaleValue / 100 end
     if pbScale then pbScale.Scale = uiScaleValue / 100 end
+    stealBarScaleValue = _clamp(num(data.stealBarScale, 100), 50, 200)
     espLineEnabled = boolOr(data.espLineEnabled, false)
     espBoxEnabled = boolOr(data.espBoxEnabled, false)
 
@@ -6886,6 +6993,7 @@ function loadAllSettings()
     end
     if data.progressBarPos and type(data.progressBarPos) == "table" then
         savedProgressBarPos = data.progressBarPos
+        VapserUI.hudWant = VapserUI.hudWantFromSaved(savedProgressBarPos)
     end
     if data.bodyLockEnabled ~= nil then
         bodyLockEnabled = boolOr(data.bodyLockEnabled, false)
@@ -6903,6 +7011,9 @@ function loadAllSettings()
     dropMode = num(data.dropMode, 1)
     stretchEnabled = boolOr(data.stretchEnabled, false)
     stretchFOV = num(data.stretchFOV, 120)
+    fovEnabled = boolOr(data.customFovEnabled, false)
+    fovValue = _clamp(_floor(num(data.customFovValue, 80)), 60, 200)
+    if customFovBox then customFovBox.Text = tostring(fovValue) end
     BAT_AIMBOT_SPEED = num(data.batAimbotSpeed, BAT_AIMBOT_SPEED)
     BYPASS_AIMBOT_SPEED = BAT_AIMBOT_SPEED
     if State then State.bypassBatSpeed = BYPASS_AIMBOT_SPEED end
@@ -6943,11 +7054,16 @@ function forceResetUI()
     if radInput then radInput.Text = tostring(CONFIG.STEAL_RANGE) end
     if laggerBox then laggerBox.Text = tostring(LAGGER_SPEED) end
     if lagger2Box then lagger2Box.Text = tostring(LAGGER_CARRY_SPEED) end
+    if normalStealBox then normalStealBox.Text = tostring(STEAL_NORMAL_SPEED) end
+    if carryStealBox then carryStealBox.Text = tostring(STEAL_CARRY_SPEED) end
+    if laggerStealBox then laggerStealBox.Text = tostring(STEAL_LAGGER_SPEED) end
     if batSpeedBox then batSpeedBox.Text = tostring(BYPASS_AIMBOT_SPEED) end
     if uiScaleBox then uiScaleBox.Text = tostring(uiScaleValue) end
     if dropModeBtnRef then dropModeBtnRef.Text = dropMode == 1 and "Fling" or "Jump Drop" end
     if bodyLockRangeBox then bodyLockRangeBox.Text = tostring(bodyLockRange) end
+    if customFovBox then customFovBox.Text = tostring(fovValue) end
     local function safeSet(fn, val) if fn then fn(val) end end
+    safeSet(setCustomFovVisual, false)
     safeSet(autoBatSetVisual, false)
     safeSet(autoLeftSetVisual, false)
     safeSet(autoRightSetVisual, false)
@@ -7041,6 +7157,7 @@ function resetFloatingPositions()
     if pbFrame then
         pbFrame.Position = UDim2.new(1, -392, 0, 18)
         savedProgressBarPos = nil
+        VapserUI.hudWant = nil
     end
     savedMobilePanelPos = nil
     if VapserUI.fit then VapserUI.fit() end
@@ -7066,6 +7183,7 @@ function resetToFactoryDefaults()
         if espLineEnabled and stopESPLine then stopESPLine() end
         if espBoxEnabled and stopESPBox then stopESPBox() end
         if stretchEnabled then disableStretch() end
+        disableCustomFov()
         if antiLagEnabled then disableAntiLag() end
         if vividGraphicsEnabled then disableVividGraphics() end
         if hideButtonsEnabled then applyHideButtons(false) end
@@ -7075,6 +7193,7 @@ function resetToFactoryDefaults()
         if skySelectorLabel then skySelectorLabel.Text = "Off" end
         if antiDieEnabled then AntiDieModule.stop(); antiDieEnabled = false end
         NS = 60; CS = 29; LAGGER_SPEED = 15; LAGGER_CARRY_SPEED = 24.5
+        STEAL_NORMAL_SPEED = 30; STEAL_CARRY_SPEED = 20; STEAL_LAGGER_SPEED = 10.1
         CONFIG.STEAL_RANGE = 61
         CONFIG.HOLD_MIN = 0.05
         CONFIG.HOLD_MAX = 0.15
@@ -7099,8 +7218,10 @@ function resetToFactoryDefaults()
         BAT_AIMBOT_SPEED = 55
         BYPASS_AIMBOT_SPEED = BAT_AIMBOT_SPEED
         if State then State.bypassBatSpeed = BYPASS_AIMBOT_SPEED end
-        dropMode = 1; stretchEnabled = false; stretchFOV = 120
+        dropMode = 1; stretchEnabled = false; stretchFOV = 120; fovValue = 80
         uiScaleValue = 90
+        stealBarScaleValue = 100
+        if stealBarScaleBox then stealBarScaleBox.Text = "100" end
         if VapserUI.fit then VapserUI.fit() end
         if pbScale then pbScale.Scale = 1 end
         espLineEnabled = false; espBoxEnabled = false; vividGraphicsEnabled = false; hideButtonsEnabled = false
@@ -8418,7 +8539,7 @@ function buildGui()
     main = VapserUI.new(mainClass, gui, {Name = "Main", Size = UDim2.fromOffset(GUI_W, GUI_H),
         Position = UDim2.fromOffset(18, 16), BackgroundColor3 = Color3.fromRGB(5, 5, 7),
         BorderSizePixel = 0, ClipsDescendants = true, Active = true})
-    VapserUI.round(main, 40)
+    VapserUI.round(main, 56)
     local border = VapserUI.stroke(main, Color3.fromRGB(210, 83, 152), 0.35, 1.2)
     border.Name = "MainBorder"
     mainUIScale = VapserUI.new("UIScale", main, {Scale = uiScaleValue / 100})
@@ -8764,6 +8885,9 @@ function buildGui()
     end
     do local row = mkRow(speedPage, 42); mkLabel(row, "Lagger Normal Speed"); laggerBox = mkBox(row, LAGGER_SPEED, 50, 56, function(v) if v == v and v > 0 and v < math.huge then LAGGER_SPEED = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
     do local row = mkRow(speedPage, 42); mkLabel(row, "Lagger Carry Speed"); lagger2Box = mkBox(row, LAGGER_CARRY_SPEED, 50, 56, function(v) if v == v and v > 0 and v < math.huge then LAGGER_CARRY_SPEED = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
+    do local row = mkRow(speedPage, 42); mkLabel(row, "Normal Steal Speed (Auto Carry)"); normalStealBox = mkBox(row, STEAL_NORMAL_SPEED, 50, 56, function(v) if v == v and v > 0 and v < math.huge then STEAL_NORMAL_SPEED = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
+    do local row = mkRow(speedPage, 42); mkLabel(row, "Carry Steal Speed (Auto Carry)"); carryStealBox = mkBox(row, STEAL_CARRY_SPEED, 50, 56, function(v) if v == v and v > 0 and v < math.huge then STEAL_CARRY_SPEED = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
+    do local row = mkRow(speedPage, 42); mkLabel(row, "Lagger Steal Speed (Auto Carry)"); laggerStealBox = mkBox(row, STEAL_LAGGER_SPEED, 50, 56, function(v) if v == v and v > 0 and v < math.huge then STEAL_LAGGER_SPEED = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
 
     mkSect(speedPage, "Speed Engine")
     VapserUI.carrySetter = mkToggle(speedPage, "Auto Carry", function(on)
@@ -8956,6 +9080,16 @@ function buildGui()
     end
     do
         local row = mkRow(visualPage, 42)
+        mkLabel(row, "Steal Bar Scale")
+        stealBarScaleBox = mkBox(row, stealBarScaleValue, 50, 56, function(v)
+            local n = _clamp(_floor(v + 0.5), 50, 200)
+            stealBarScaleValue = n
+            if stealBarScaleBox then stealBarScaleBox.Text = tostring(n) end
+            if VapserUI.fit then VapserUI.fit() end
+        end)
+    end
+    do
+        local row = mkRow(visualPage, 42)
         mkLabel(row, "Button Scale")
         local box = mkBox(row, _floor(floatingButtonScale * 100), 50, 56, function(v)
             local val = _clamp(v, 50, 200)
@@ -9048,6 +9182,17 @@ function buildGui()
         stretchClk.ZIndex = 10
         stretchClk.MouseButton1Click:Connect(function() setStretch(not stretchOn) end)
         _G.stretchToggleSetter = setStretch
+    end
+    setCustomFovVisual = mkToggle(visualPage, "Custom FOV", function(on)
+        if on then enableCustomFov() else disableCustomFov() end
+    end)
+    do
+        local row = mkRow(visualPage, 42)
+        mkLabel(row, "FOV Value")
+        customFovBox = mkBox(row, fovValue, 50, 56, function(v)
+            fovValue = _clamp(_floor(v), 60, 200)
+            if customFovBox then customFovBox.Text = tostring(fovValue) end
+        end)
     end
     setAntiLagVisual = mkToggle(visualPage, "Anti Lag", function(on)
         if on then enableAntiLag() else disableAntiLag() end
@@ -9354,15 +9499,15 @@ function buildGui()
     stealHud.stats.Font = Enum.Font.GothamBold
     stealHud.stats.TextStrokeTransparency = 0.6
     updateStealProgress(stealHud.value, stealHud.state)
-    drag(pbFrame)
-    -- Remember where the bar was put (drag / saved config) so viewport changes
-    -- (e.g. the on-screen keyboard when typing a number) never move it for good.
-    pbFrame:GetPropertyChangedSignal("Position"):Connect(function()
-        if VapserUI.hudFitting then return end
+    drag(pbFrame, nil, function(frame)
+        -- Explicit tracking (no Position signal): survives deferred signal delivery and keeps
+        -- the chosen spot even when the viewport changes (e.g. on-screen keyboard).
+        local pos = frame.Position
         local cam = Workspace.CurrentCamera
         local vp = cam and cam.ViewportSize or Vector2.new(0, 0)
-        local pos = pbFrame.Position
-        VapserUI.hudWant = Vector2.new(pos.X.Scale * vp.X + pos.X.Offset, pos.Y.Scale * vp.Y + pos.Y.Offset)
+        local want = Vector2.new(pos.X.Scale * vp.X + pos.X.Offset, pos.Y.Scale * vp.Y + pos.Y.Offset)
+        VapserUI.hudWant = want
+        savedProgressBarPos = {XScale = 0, XOffset = want.X, YScale = 0, YOffset = want.Y}
     end)
     VapserUI.fit()
     do
@@ -9975,6 +10120,9 @@ function updateUIFromLoaded()
     if radInput then radInput.Text = tostring(CONFIG.STEAL_RANGE) end
     if laggerBox then laggerBox.Text = tostring(LAGGER_SPEED) end
     if lagger2Box then lagger2Box.Text = tostring(LAGGER_CARRY_SPEED) end
+    if normalStealBox then normalStealBox.Text = tostring(STEAL_NORMAL_SPEED) end
+    if carryStealBox then carryStealBox.Text = tostring(STEAL_CARRY_SPEED) end
+    if laggerStealBox then laggerStealBox.Text = tostring(STEAL_LAGGER_SPEED) end
     if batSpeedBox then batSpeedBox.Text = tostring(BYPASS_AIMBOT_SPEED) end
     if uiScaleBox then uiScaleBox.Text = tostring(uiScaleValue) end
     if dropModeBtnRef then dropModeBtnRef.Text = dropMode == 1 and "Fling" or "Jump Drop" end
@@ -9999,8 +10147,9 @@ function updateUIFromLoaded()
     end
 
     if savedProgressBarPos and pbFrame then
-        pbFrame.Position = UDim2.new(savedProgressBarPos.XScale or 0.5, savedProgressBarPos.XOffset or -160, savedProgressBarPos.YScale or 0.80, savedProgressBarPos.YOffset or 0)
+        VapserUI.hudWant = VapserUI.hudWantFromSaved(savedProgressBarPos)
     end
+    if stealBarScaleBox then stealBarScaleBox.Text = tostring(stealBarScaleValue) end
 
     applyBackgroundMode(backgroundMode)
     applyFloatingButtonScale()
@@ -10092,6 +10241,15 @@ function updateUIFromLoaded()
     else
         disableVividGraphics()
         if setVividVisual then setVividVisual(false) end
+    end
+
+    if customFovBox then customFovBox.Text = tostring(fovValue) end
+    if fovEnabled then
+        if setCustomFovVisual then setCustomFovVisual(true) end
+        enableCustomFov()
+    else
+        if setCustomFovVisual then setCustomFovVisual(false) end
+        disableCustomFov()
     end
 
     if stretchEnabled then
