@@ -2458,7 +2458,7 @@ function getActiveMoveSpeed()
 end
 
 function getSpeedModeName()
-    if useVenixCarryEngine and VapserVenixCarry and VapserVenixCarry.softStealEnabled and VapserVenixCarry.softStealLatched then return "AUTO CARRY" end
+    if useVenixCarryEngine and VapserVenixCarry and VapserVenixCarry.isAutoCarryActive and VapserVenixCarry:isAutoCarryActive() then return "AUTO CARRY" end
     if laggerToggled or laggerCarryToggled then return "LAGGER"
     elseif speedMode then return "CARRY"
     else return "NORMAL" end
@@ -2541,94 +2541,38 @@ end
             laggerCarrySpeed = LAGGER_CARRY_SPEED,
             speedToggled = false,
             laggerMode = 0,
-            softStealEnabled = false,
-            softStealRadius = 10,
-            softStealSpeed = 30,
-            softStealLatched = false,
-            _isCarrying = false,
-            _lastCarryCheck = 0,
+            autoCarryEnabled = false,
+            _autoCarryFromSteal = false,
+            _autoCarryGraceUntil = 0,
+            _waitingForCarryPickup = false,
+            _carryPickupWatchUntil = 0,
+            _autoCarryReturnMode = nil,
+            _autoCarryStealLatch = false,
+            _autoCarryConn = nil,
+            _autoCarryWarned = false,
+            _isAutoStealing = nil,
             _lvBoost = nil,
             _lvAtt = nil,
             _blockedTime = 0,
             _maxForce = 2200,
             _freeForce = 500,
             _heartbeatConn = nil,
-            _softStealScanner = nil,
-            _softStealAnimals = {},
-            _softStealScanning = false,
             _state = nil,
             _dropInProgress = false,
             _batAimbotToggled = false,
             _rayParams = nil,
             _rayFilter = nil,
             _rayFilterTime = 0,
-            isCarrying = function(self)
-                local now = _tick()
-                if now - (self._lastCarryCheck or 0) < 0.1 then
-                    return self._isCarrying
-                end
-                self._lastCarryCheck = now
-                local character = LP.Character
-                if not character then
-                    self._isCarrying = false
-                    return false
-                end
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                local walkSpeed = humanoid and humanoid.WalkSpeed or 16
-                local isCarrying = walkSpeed < 25 and walkSpeed > 0
-                local ok, result = pcall(function()
-                    return LP:GetAttribute("Stealing")
-                end)
-                ok = ok and result == true
-                local isEnabled = false
-                if ok then
-                    isEnabled = true
-                end
-                local ok2, result2 = pcall(function()
-                    return character:GetAttribute("Stealing")
-                end)
-                if ok2 and result2 == true then
-                    isEnabled = true
-                end
-                if not isEnabled then
-                    for _, name in ipairs({
-                        "Carrying",
-                        "IsCarrying",
-                        "Grabbed",
-                        "Holding",
-                        "StealHold",
-                        "HasGrab",
-                    }) do
-                        local instance = character:FindFirstChild(name)
-                        if instance then
-                            if
-                                instance:IsA("BoolValue") and instance.Value
-                                or instance:IsA("ObjectValue") and instance.Value
-                                or instance:IsA("StringValue") and instance.Value ~= ""
-                            then
-                                isEnabled = true
-                                break
-                            end
-                        end
-                    end
-                end
-                self._isCarrying = isCarrying or isEnabled
-                return self._isCarrying
-            end,
             getActiveSpeed = function(self)
                 if self._state and (self._state.autoLeftEnabled or self._state.autoRightEnabled) then
                     return self.normalSpeed
                 end
-                if self.softStealEnabled then
-                    local _, distance = self:getNearestSoftStealAnimal(self.softStealRadius)
-                    if distance and distance <= self.softStealRadius then
-                        self.softStealLatched = true
-                        return self.softStealSpeed
+                if self:isAutoCarryActive() then
+                    -- stealing: Lagger / Lagger Carry -> Lagger Carry speed, otherwise -> Carry speed
+                    if self.laggerMode ~= 0 then
+                        return self.laggerCarrySpeed
                     end
-                    if self.softStealLatched and self:isCarrying() then
-                        return self.softStealSpeed
-                    end
-                    self.softStealLatched = false
+                    return self.carrySpeed
                 end
                 if self.laggerMode == 1 then
                     return self.laggerSpeed
@@ -2643,14 +2587,11 @@ end
             end,
             getStatus = function(self)
                 if not (self._state and (self._state.autoLeftEnabled or self._state.autoRightEnabled)) then
-                    if self.softStealEnabled then
-                        local _, distance = self:getNearestSoftStealAnimal(self.softStealRadius)
-                        if
-                            distance and distance <= self.softStealRadius
-                            or self.softStealLatched and self:isCarrying()
-                        then
-                            return "AUTO CARRY", self.softStealSpeed
+                    if self:isAutoCarryActive() then
+                        if self.laggerMode ~= 0 then
+                            return "AUTO CARRY", self.laggerCarrySpeed
                         end
+                        return "AUTO CARRY", self.carrySpeed
                     end
                     if self.laggerMode == 1 then
                         return "LAGGER", self.laggerSpeed
@@ -2705,87 +2646,219 @@ end
                     parent:SetNetworkOwner(LP)
                 end)
             end
-            VapserVenixCarry.scanSoftStealAnimals = function(self)
-                self._softStealAnimals = {}
-                local plots = Workspace:FindFirstChild("Plots")
-                if not plots then
-                    return
+            -- ===== Auto Carry (ported from VoltHub v20: "Auto Carry On Steal") =====
+            -- Replaces the old proximity "soft steal" scanner. Speed switches to the Carry / Lagger Carry speed while the
+            -- player is stealing / holding a brainrot, and returns to the normal/carry/lagger speed afterwards.
+            local IGNORED_TOOL_WORDS = {"bat", "slap", "medusa", "head", "stone"}
+            local BODY_PIECE_NAMES = {
+                animate = true, animsaves = true, health = true, rig = true, ["body colors"] = true,
+                bodycolors = true, humanoid = true, head = true, torso = true, uppertorso = true,
+                lowertorso = true, humanoidrootpart = true,
+            }
+            local CARRY_VALUE_NAMES = {"Carrying", "IsCarrying", "Grabbed", "Holding", "StealHold", "HasGrab"}
+            local function isIgnoredToolName(name)
+                name = tostring(name or ""):lower()
+                for _, word in ipairs(IGNORED_TOOL_WORDS) do
+                    if name:find(word, 1, true) then return true end
                 end
-                for _, child in ipairs(plots:GetChildren()) do
-                    if child:IsA("Model") then
-                        local animalPodiums = child:FindFirstChild("AnimalPodiums")
-                        if animalPodiums then
-                            for _, child2 in ipairs(animalPodiums:GetChildren()) do
-                                if child2:IsA("Model") then
-                                    local base = child2:FindFirstChild("Base")
-                                    base = base and base:FindFirstChild("Spawn")
-                                    if base then
-                                        table.insert(self._softStealAnimals, {
-                                            plot = child.Name,
-                                            slot = child2.Name,
-                                            worldPosition = base.Position,
-                                            uid = child.Name .. "_" .. child2.Name,
-                                        })
+                return false
+            end
+            local function isBodyPiece(child)
+                local lowered = child.Name:lower()
+                if BODY_PIECE_NAMES[lowered] or isIgnoredToolName(lowered) then return true end
+                if child:FindFirstChildOfClass("Humanoid") then return true end
+                if child:FindFirstChildWhichIsA("Accoutrement", true) then return true end
+                return false
+            end
+            local function looksLikeCarriedName(name)
+                name = tostring(name or ""):lower()
+                return name:find("brainrot") or name:find("animal") or name:find("carry")
+                    or name:find("grab") or name:find("steal") or name:find("hold")
+            end
+            -- Volt: Config._brainrotSafetyApi.isHoldingBrainrot
+            local function isHoldingBrainrotModel(character)
+                if not character then return false end
+                for _, child in ipairs(character:GetChildren()) do
+                    if child:IsA("Tool") and not isIgnoredToolName(child.Name) then return true end
+                end
+                for _, child in ipairs(character:GetChildren()) do
+                    if child:IsA("Model") and not isBodyPiece(child) and child:FindFirstChildWhichIsA("BasePart") then
+                        return true
+                    end
+                end
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                local seated = humanoid and (humanoid.Sit or humanoid.SeatPart ~= nil)
+                local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+                if root and not seated then
+                    local ok, parts = pcall(function() return root:GetConnectedParts(true) end)
+                    if ok and parts then
+                        for _, part in ipairs(parts) do
+                            if not part:IsDescendantOf(character) and not part:IsA("Seat") and not part:IsA("VehicleSeat") then
+                                local tool = part:FindFirstAncestorWhichIsA("Tool")
+                                if not isIgnoredToolName(tool and tool.Name or part.Name) then
+                                    local model = part:FindFirstAncestorOfClass("Model")
+                                    if not (model and Players:GetPlayerFromCharacter(model)) then
+                                        return true
                                     end
                                 end
                             end
                         end
                     end
                 end
+                return false
             end
-            VapserVenixCarry.startSoftStealScanner = function(callback)
-                if callback._softStealScanner then
+            -- Volt: isCarryingForWarningE01
+            local function isCarryingBrainrot(character)
+                if not character then return false end
+                local ok, holding = pcall(isHoldingBrainrotModel, character)
+                if ok and holding then return true end
+                for _, name in ipairs(CARRY_VALUE_NAMES) do
+                    local inst = character:FindFirstChild(name, true)
+                    if inst then
+                        if inst:IsA("BoolValue") and inst.Value then return true end
+                        if inst:IsA("ObjectValue") and inst.Value then return true end
+                        if inst:IsA("StringValue") and inst.Value ~= "" then return true end
+                    end
+                end
+                for _, child in ipairs(character:GetChildren()) do
+                    if child:IsA("Model") and child:FindFirstChildWhichIsA("BasePart", true) then
+                        if child:FindFirstChildOfClass("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
+                            return true
+                        end
+                        if looksLikeCarriedName(child.Name) then return true end
+                    elseif child:IsA("Tool") and not isIgnoredToolName(child.Name) then
+                        return true
+                    end
+                end
+                return false
+            end
+            -- Volt: fn26 (duel pre-round countdown: Auto Carry stays off while it is running)
+            local duelLabel, duelLabelAt = nil, 0
+            local function duelCountdownActive()
+                local now = os.clock()
+                if now - duelLabelAt > 0.2 then
+                    duelLabelAt = now
+                    local ok, result = pcall(function()
+                        local playerGui = LP:FindFirstChildOfClass("PlayerGui")
+                        local top = playerGui and playerGui:FindFirstChild("DuelsMachineTopFrame", true)
+                        if not top or (top:IsA("GuiObject") and not top.Visible) then return nil end
+                        local timer = top:FindFirstChild("Timer", true)
+                        local label = timer and (timer:FindFirstChild("Label") or timer)
+                        if label and (label:IsA("TextLabel") or label:IsA("TextButton")) then return label end
+                        for _, d in ipairs(top:GetDescendants()) do
+                            if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Visible then
+                                local own = d.Name:lower()
+                                local parentName = d.Parent and d.Parent.Name:lower() or ""
+                                if own:find("timer") or own:find("count") or parentName:find("timer") or parentName:find("count") then
+                                    return d
+                                end
+                            end
+                        end
+                        return nil
+                    end)
+                    duelLabel = ok and result or nil
+                end
+                if not duelLabel then return false end
+                local ok, result = pcall(function()
+                    local text = tostring(duelLabel.Text or ""):upper():gsub("^%s+", ""):gsub("%s+$", "")
+                    if text == "GO" or text == "START" or text == "READY" then return true end
+                    local number = tonumber(text)
+                    return number ~= nil and number >= 0 and number <= 10
+                end)
+                return ok and result == true
+            end
+
+            VapserVenixCarry.resetAutoCarryState = function(self)           -- Volt: fn90
+                self._autoCarryFromSteal = false
+                self._waitingForCarryPickup = false
+                self._autoCarryGraceUntil = 0
+                self._carryPickupWatchUntil = 0
+                self._autoCarryReturnMode = nil
+            end
+            VapserVenixCarry.beginAutoCarry = function(self)                -- Volt: fn89
+                if not self.autoCarryEnabled then return end
+                self._waitingForCarryPickup = false
+                self._carryPickupWatchUntil = 0
+                if not self._autoCarryFromSteal then
+                    self._autoCarryReturnMode = self.laggerMode ~= 0 and "Lagger" or (self.speedToggled and "Carry" or "Normal")
+                end
+                self._autoCarryFromSteal = true
+                self._autoCarryGraceUntil = _tick() + 0.75
+            end
+            VapserVenixCarry.watchCarryPickup = function(self, seconds)     -- Volt: fn91 / _G.AutoCarrySpeed.WatchPickup
+                if not self.autoCarryEnabled then return end
+                self._waitingForCarryPickup = true
+                self._carryPickupWatchUntil = _tick() + (seconds or 1.25)
+            end
+            VapserVenixCarry.isAutoCarryActive = function(self)             -- Volt: _unifiedResolveSpeed steal branches
+                if not self.autoCarryEnabled then return false end
+                if duelCountdownActive() then return false end
+                if self._autoCarryFromSteal then return true end
+                local autoStealing = self._isAutoStealing
+                return autoStealing ~= nil and autoStealing() == true
+            end
+            VapserVenixCarry.stepAutoCarry = function(self)                 -- Volt: RenderStepped state machine
+                if not self.autoCarryEnabled then self:resetAutoCarryState(); return end
+                if duelCountdownActive() then self:resetAutoCarryState(); return end
+                local character = LP.Character
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                if not character or not humanoid or not root then
+                    self:resetAutoCarryState()
+                    self._autoCarryStealLatch = false
                     return
                 end
-                callback._softStealScanning = true
-                callback:scanSoftStealAnimals()
-                local accumulator = 0
-                callback._softStealScanner = RunService.Heartbeat:Connect(function(dt)
-                    accumulator = accumulator + dt
-                    if accumulator < 0.2 then return end
-                    accumulator = 0
-                    if not callback._softStealScanning then
-                        return
+                local state = humanoid:GetState()
+                local ragdolled = state == Enum.HumanoidStateType.Physics
+                    or state == Enum.HumanoidStateType.Ragdoll
+                    or state == Enum.HumanoidStateType.FallingDown
+                local stealingAttr = LP:GetAttribute("Stealing") == true
+                local carrying = isCarryingBrainrot(character)
+                if stealingAttr and not self._autoCarryStealLatch then
+                    self._autoCarryStealLatch = true
+                    self:beginAutoCarry()
+                elseif not stealingAttr then
+                    self._autoCarryStealLatch = false
+                end
+                if self._waitingForCarryPickup then
+                    if ragdolled or _tick() > (self._carryPickupWatchUntil or 0) then
+                        self._waitingForCarryPickup = false
+                        self._carryPickupWatchUntil = 0
+                    elseif carrying then
+                        self:beginAutoCarry()
                     end
-                    callback:scanSoftStealAnimals()
+                end
+                if carrying and not self._autoCarryFromSteal then
+                    self:beginAutoCarry()
+                end
+                if self._autoCarryFromSteal then
+                    if ragdolled or (_tick() > (self._autoCarryGraceUntil or 0) and not carrying and not stealingAttr) then
+                        self:resetAutoCarryState()
+                    end
+                end
+            end
+            VapserVenixCarry.startAutoCarryLoop = function(self)
+                if self._autoCarryConn then return end
+                local accumulator = 0
+                self._autoCarryConn = RunService.RenderStepped:Connect(function(dt)
+                    if _mySession ~= _G.VapserSession then self:stopAutoCarryLoop(); return end
+                    accumulator = accumulator + dt
+                    if accumulator < (1 / 30) then return end
+                    accumulator = 0
+                    local ok, err = pcall(self.stepAutoCarry, self)
+                    if not ok and not self._autoCarryWarned then
+                        self._autoCarryWarned = true
+                        warn("[Vapser AutoCarry] " .. tostring(err))
+                    end
                 end)
             end
-            VapserVenixCarry.stopSoftStealScanner = function(self)
-                self._softStealScanning = false
-                if self._softStealScanner then
-                    self._softStealScanner:Disconnect()
-                    self._softStealScanner = nil
+            VapserVenixCarry.stopAutoCarryLoop = function(self)
+                if self._autoCarryConn then
+                    self._autoCarryConn:Disconnect()
+                    self._autoCarryConn = nil
                 end
-            end
-            VapserVenixCarry.getNearestSoftStealAnimal = function(self, radius)
-                local character = LP.Character
-                if character then
-                    character = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso")
-                end
-                if not character then
-                    return nil, _huge
-                end
-                local softStealAnimals = self._softStealAnimals
-                local position = character.Position
-                local bestDistance = _huge
-                local animals = nil
-                for i = 1, #softStealAnimals do
-                    local rootPart = softStealAnimals[i]
-                    if rootPart.worldPosition then
-                        local dx = position.X - rootPart.worldPosition.X
-                        local dy = position.Y - rootPart.worldPosition.Y
-                        local dz = position.Z - rootPart.worldPosition.Z
-                        local distance = _sqrt(dx * dx + dy * dy + dz * dz)
-                        if distance < bestDistance then
-                            bestDistance = distance
-                            animals = rootPart
-                        end
-                    end
-                end
-                if radius and bestDistance > radius then
-                    return nil, bestDistance
-                end
-                return animals, bestDistance
+                self._autoCarryStealLatch = false
+                self:resetAutoCarryState()
             end
             VapserVenixCarry.updateMovement = function(self, deltaTime)
                 local character = LP.Character
@@ -2960,8 +3033,8 @@ end
                         or (_G.__VapserIsBatV2 and _G.__VapserIsBatV2())
                     deltaTime236:updateMovement(deltaTime)
                 end)
-                if deltaTime236.softStealEnabled then
-                    deltaTime236:startSoftStealScanner()
+                if deltaTime236.autoCarryEnabled then
+                    deltaTime236:startAutoCarryLoop()
                 end
                 print("[CarrySystem] Enabled")
             end
@@ -2970,9 +3043,8 @@ end
                     self._heartbeatConn:Disconnect()
                     self._heartbeatConn = nil
                 end
-                self:stopSoftStealScanner()
+                self:stopAutoCarryLoop()
                 destroyLV()
-                self.softStealLatched = false
                 print("[CarrySystem] Disabled")
             end
         end
@@ -2987,12 +3059,6 @@ end
     end
     VapserVenixCarry.setLaggerCarrySpeed = function(self, value)
         self.laggerCarrySpeed = _clamp(value, 0.1, 500)
-    end
-    VapserVenixCarry.setSoftStealSpeed = function(self, value)
-        self.softStealSpeed = _clamp(value, 1, 500)
-    end
-    VapserVenixCarry.setSoftStealRadius = function(self, value)
-        self.softStealRadius = _clamp(value, 1, 200)
     end
     VapserVenixCarry.toggleCarryMode = function(self)
         self.speedToggled = not self.speedToggled
@@ -3015,17 +3081,16 @@ end
             self.laggerMode = 0
         end
     end
-    VapserVenixCarry.setSoftStealEnabled = function(self, softStealEnabled)
-        self.softStealEnabled = softStealEnabled
-        if softStealEnabled then
-            self:startSoftStealScanner()
+    VapserVenixCarry.setAutoCarryEnabled = function(self, enabled)
+        self.autoCarryEnabled = enabled == true
+        if self.autoCarryEnabled then
+            self:startAutoCarryLoop()
         else
-            self:stopSoftStealScanner()
-            self.softStealLatched = false
+            self:stopAutoCarryLoop()
         end
     end
-    VapserVenixCarry.toggleSoftSteal = function(self)
-        self:setSoftStealEnabled(not self.softStealEnabled)
+    VapserVenixCarry.toggleAutoCarry = function(self)
+        self:setAutoCarryEnabled(not self.autoCarryEnabled)
     end
     VapserVenixCarry.isRunning = function(self)
         return self._heartbeatConn ~= nil
@@ -3193,6 +3258,7 @@ local Steal = {
 }
 
 local isStealing = false
+VapserVenixCarry._isAutoStealing = function() return isStealing end
 local autoStealMode = "75"
 local autoStealVariant = 1
 local autoStealGeneration = 0
@@ -3368,6 +3434,7 @@ local function executeSteal(prompt, podName)
                 else pcall(function() prompt:InputHoldBegin(); prompt:InputHoldEnd() end) end
             end
             updateStealProgress(1, "COMPLETE")
+            pcall(function() VapserVenixCarry:watchCarryPickup(1.25) end)
             task.wait(0.12)
         end)
         data.ready = true
@@ -6542,9 +6609,7 @@ function buildConfigTable()
         infiniteJumpMode = InfiniteJump.mode == "manual" and "manual" or "hold",
         autoStealMode = autoStealMode,
         useVenixCarryEngine = useVenixCarryEngine,
-        softCarry = VapserVenixCarry.softStealEnabled,
-        softCarrySpeed = VapserVenixCarry.softStealSpeed,
-        softCarryRadius = VapserVenixCarry.softStealRadius,
+        autoCarry = VapserVenixCarry.autoCarryEnabled,
         uiEffects = VapserUI.effects,
         mobileButtonsLocked = mobileButtonsLocked,
         batV2 = _G.__VapserIsBatV2 and _G.__VapserIsBatV2() or false,
@@ -6751,9 +6816,12 @@ function loadAllSettings()
     autoRightEnabled = boolOr(data.autoRight, false)
     setAutoStealMode(data.autoStealMode or "75")
     useVenixCarryEngine = true
-    VapserVenixCarry.softStealSpeed = _clamp(num(data.softCarrySpeed, 30), 1, 500)
-    VapserVenixCarry.softStealRadius = _clamp(num(data.softCarryRadius, 10), 1, 200)
-    VapserVenixCarry:setSoftStealEnabled(boolOr(data.softCarry, false))
+    do
+        -- falls back to the old soft-steal key so existing config files keep their value
+        local savedEnabled = data.autoCarry
+        if savedEnabled == nil then savedEnabled = data.softCarry end
+        VapserVenixCarry:setAutoCarryEnabled(boolOr(savedEnabled, false))
+    end
     VapserUI.effects = false
     mobileButtonsLocked = boolOr(data.mobileButtonsLocked, false)
     if _G.__VapserRefreshSpeedEngine then pcall(_G.__VapserRefreshSpeedEngine) end
@@ -7025,9 +7093,7 @@ function resetToFactoryDefaults()
         setAutoStealMode("75")
         useVenixCarryEngine = true
         VapserVenixCarry:stop()
-        VapserVenixCarry.softStealEnabled = false
-        VapserVenixCarry.softStealSpeed = 30
-        VapserVenixCarry.softStealRadius = 10
+        VapserVenixCarry:setAutoCarryEnabled(false)
         VapserUI.effects = false
         if _G._VapserStealModeSetter then pcall(_G._VapserStealModeSetter, "V1") end
         BAT_AIMBOT_SPEED = 55
@@ -8689,8 +8755,11 @@ function buildGui()
     do local row = mkRow(speedPage, 42); mkLabel(row, "Normal Speed"); normalBox = mkBox(row, NS, 50, 56, function(v) if v == v and v > 0 and v < math.huge then NS = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
     do
         local row = mkRow(speedPage, 42); mkLabel(row, "Carry Speed")
-        VapserUI.carrySpeedBox = mkBox(row, VapserVenixCarry.softStealSpeed, 50, 56, function(v)
-            VapserVenixCarry:setSoftStealSpeed(v); VapserUI.carrySpeedBox.Text = tostring(VapserVenixCarry.softStealSpeed)
+        carryBox = mkBox(row, CS, 50, 56, function(v)
+            if v == v and v > 0 and v < math.huge then
+                CS = v
+                if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end
+            end
         end)
     end
     do local row = mkRow(speedPage, 42); mkLabel(row, "Lagger Normal Speed"); laggerBox = mkBox(row, LAGGER_SPEED, 50, 56, function(v) if v == v and v > 0 and v < math.huge then LAGGER_SPEED = v; if _G.__VapserApplySpeedNow then pcall(_G.__VapserApplySpeedNow) end end end) end
@@ -8698,17 +8767,11 @@ function buildGui()
 
     mkSect(speedPage, "Speed Engine")
     VapserUI.carrySetter = mkToggle(speedPage, "Auto Carry", function(on)
-        VapserVenixCarry:setSoftStealEnabled(on)
+        VapserVenixCarry:setAutoCarryEnabled(on)
         if on then useVenixCarryEngine = true end
         if VapserUI.motorLabel then VapserUI.motorLabel.Text = useVenixCarryEngine and "Carry Boost" or "Direct" end
         if _G.__VapserRefreshSpeedEngine then _G.__VapserRefreshSpeedEngine() end
     end)
-    do
-        local row = mkRow(speedPage, 46); mkLabel(row, "Auto Carry Radius")
-        VapserUI.carryRadiusBox = mkBox(row, VapserVenixCarry.softStealRadius, 60, 72, function(v)
-            VapserVenixCarry:setSoftStealRadius(v); VapserUI.carryRadiusBox.Text = tostring(VapserVenixCarry.softStealRadius)
-        end)
-    end
     mkSect(speedPage, "Active Mode")
     do
         local row = mkRow(speedPage, 42)
@@ -8902,9 +8965,9 @@ function buildGui()
         end)
     end
 
-    mkSect(visualPage, "Character")
+    mkSect(speedPage, "Character")
     do
-        local row = mkRow(visualPage, 42)
+        local row = mkRow(speedPage, 42)
         mkLabel(row, "Anim Pack")
         local currentIndex = 1
         for i, entry in ipairs(ANIM_PACK_ORDER) do
@@ -9943,9 +10006,7 @@ function updateUIFromLoaded()
     applyFloatingButtonScale()
     if VapserUI.fit then VapserUI.fit() end
     if VapserUI.motorLabel then VapserUI.motorLabel.Text = useVenixCarryEngine and "Carry Boost" or "Direct" end
-    if VapserUI.carrySetter then VapserUI.carrySetter(VapserVenixCarry.softStealEnabled) end
-    if VapserUI.carrySpeedBox then VapserUI.carrySpeedBox.Text = tostring(VapserVenixCarry.softStealSpeed) end
-    if VapserUI.carryRadiusBox then VapserUI.carryRadiusBox.Text = tostring(VapserVenixCarry.softStealRadius) end
+    if VapserUI.carrySetter then VapserUI.carrySetter(VapserVenixCarry.autoCarryEnabled) end
     if VapserUI.effectsSetter then VapserUI.effectsSetter(VapserUI.effects) end
     if VapserUI.lockButtonsSetter then VapserUI.lockButtonsSetter(mobileButtonsLocked) end
 
