@@ -4538,190 +4538,9 @@ _vapser_readfile = readfile or (syn and syn.readfile)
 _vapser_writefile = writefile or (syn and syn.writefile)
 canSaveConfig = (type(_vapser_readfile) == "function" and type(_vapser_writefile) == "function")
 
--- Intro
-selectedIntroMusic = selectedIntroMusic or 1
-_introEnabled = (_introEnabled ~= false)
-setIntroVisual = nil
-setIntroSongVisual = nil
-INTRO_MUSIC_OPTIONS = INTRO_MUSIC_OPTIONS or {
-  {name="Song 1", url="", file="VapserHubIntroSong1.mp3"},
-  {name="Song 2", url="", file="VapserHubIntroSong2.mp3"},
-  {name="Song 3", url="", file="VapserHubIntroSong3.mp3"},
-  {name="Song 4", url="", file="VapserHubIntroSong4.mp3"},
-  {name="Song 5", url="", file="VapserHubIntroSong5.mp3"},
-  {name="Song 6", url="", file="VapserHubIntroSong6.mp3"},
-  {name="Song 7", url="", file="VapserHubIntroSong7.mp3"},
-}
-
-function getIntroSongName()
-  local opt = INTRO_MUSIC_OPTIONS[selectedIntroMusic]
-  return opt and opt.name or "No Songs Added"
-end
-
-introPreviewSound = nil
-introPlaybackSound = nil
-introPreviewToken = 0
-introPlaybackToken = 0
-introSongCache = introSongCache or {}
-introSongDownloading = introSongDownloading or {}
-
-function stopIntroPreview()
-  introPreviewToken = introPreviewToken + 1
-  if introPreviewSound then
-    local sound = introPreviewSound
-    local fadeTween = TweenService:Create(sound, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {
-      Volume = 0
-    })
-    fadeTween:Play()
-    task.delay(1.6, function()
-      pcall(function()
-        if sound and sound.Parent then
-          sound:Stop()
-          sound:Destroy()
-        end
-      end)
-    end)
-    introPreviewSound = nil
-  end
-end
-
-function stopIntroPlayback()
-  introPlaybackToken = introPlaybackToken + 1
-  
-  -- Fade away del volume prima di distruggere il sound
-  if introPlaybackSound then
-    local sound = introPlaybackSound
-    local startVol = sound.Volume
-    
-    -- Crea un tween per abbassare il volume gradualmente in 1.5 secondi
-    local fadeTween = TweenService:Create(sound, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {
-      Volume = 0
-    })
-    
-    fadeTween:Play()
-    
-    -- Distrugge il sound dopo che il fade è completato
-    task.delay(1.6, function()
-      pcall(function()
-        if sound and sound.Parent then
-          sound:Stop()
-          sound:Destroy()
-        end
-      end)
-    end)
-    
-    introPlaybackSound = nil
-  end
-end
-
 function _safeNotify(msg)
   if showActionNotification then pcall(function() showActionNotification(msg) end) end
 end
-
-function cacheIntroSong(option, allowDownload)
-  if not option or not option.url or option.url == "" then return nil end
-  if not (writefile and getcustomasset) then return nil end
-  local fileName = option.file or ("VapserHubIntroSong_" .. tostring(option.name or "song") .. ".mp3")
-  local function loadExisting()
-    if introSongCache[fileName] then return introSongCache[fileName] end
-    local hasFile = false
-    pcall(function() hasFile = isfile and isfile(fileName) end)
-    if hasFile then
-      local ok = pcall(function() introSongCache[fileName] = getcustomasset(fileName) end)
-      if ok and introSongCache[fileName] then return introSongCache[fileName] end
-    end
-    return nil
-  end
-  local cached = loadExisting()
-  if cached then return cached end
-  if allowDownload == false then return nil end
-  if introSongDownloading[fileName] then
-    local waitStart = tick()
-    while introSongDownloading[fileName] and tick() - waitStart < 12 do task.wait(0.05) end
-    cached = loadExisting()
-    if cached then return cached end
-  end
-  introSongDownloading[fileName] = true
-  local ok = pcall(function()
-    local data = nil
-    if data and #data > 0 then
-      writefile(fileName, data)
-      introSongCache[fileName] = getcustomasset(fileName)
-    end
-  end)
-  introSongDownloading[fileName] = nil
-  if ok and introSongCache[fileName] then return introSongCache[fileName] end
-  return loadExisting()
-end
-
-function preloadIntroSongs()
-  task.spawn(function()
-    cacheIntroSong(INTRO_MUSIC_OPTIONS[selectedIntroMusic], true)
-    for _, option in ipairs(INTRO_MUSIC_OPTIONS) do
-      if option ~= INTRO_MUSIC_OPTIONS[selectedIntroMusic] then
-        cacheIntroSong(option, true)
-        task.wait(0.05)
-      end
-    end
-  end)
-end
-
-function makeIntroSoundFromId(soundId, name, parent)
-  if not soundId then return nil end
-  local sound = Instance.new("Sound")
-  sound.Name = name or "VapserHubIntroMusic"
-  sound.Volume = 0.65
-  sound.Looped = false
-  sound.SoundId = soundId
-  sound.Parent = parent or SoundService
-  return sound
-end
-
-function createIntroSound(option, fileName, parent, allowDownload)
-  if not option then return nil end
-  local soundId = cacheIntroSong(option, allowDownload)
-  if not soundId then return nil end
-  return makeIntroSoundFromId(soundId, fileName, parent)
-end
-
-function previewIntroMusic(index)
-  stopIntroPreview()
-  stopIntroPlayback()
-  if not INTRO_MUSIC_OPTIONS[index] then _safeNotify("ADD SONG LINKS"); return end
-  local token = introPreviewToken
-  task.spawn(function()
-    local option = INTRO_MUSIC_OPTIONS[index]
-    local sound = createIntroSound(option, "VapserHubIntroPreview_" .. tostring(token), SoundService, true)
-    if token ~= introPreviewToken then if sound then sound:Destroy() end; return end
-    introPreviewSound = sound
-    if not sound then _safeNotify("SONG LOADING..."); return end
-    sound.TimePosition = 0
-    pcall(function() sound:Play() end)
-    task.delay(13, function() if token == introPreviewToken then stopIntroPreview() end end)
-  end)
-end
-
-function playIntroMusic()
-  stopIntroPreview()
-  stopIntroPlayback()
-  if not _introEnabled then return end
-  local option = INTRO_MUSIC_OPTIONS[selectedIntroMusic]
-  if not option then return end
-  local token = introPlaybackToken
-  task.spawn(function()
-    local sound = createIntroSound(option, "VapserDuelsIntroMusic_" .. tostring(token), SoundService, true)
-    if token ~= introPlaybackToken or not _introEnabled then if sound then pcall(function() sound:Destroy() end) end; return end
-    introPlaybackSound = sound
-    if not sound then _safeNotify("SONG FAILED"); return end
-    sound.TimePosition = 0
-    local loadStart = tick()
-    while sound and not sound.IsLoaded and tick() - loadStart < 10 do task.wait(0.05) end
-    pcall(function() sound:Play() end)
-    task.delay(13, function() if token == introPlaybackToken then stopIntroPlayback() end end)
-  end)
-end
-
-preloadIntroSongs()
 
 -- ============================================================
 -- MUSIC PLAYER (stessa logica dell'intro: download -> cache -> getcustomasset)
@@ -5437,8 +5256,6 @@ function collectVapserConfig()
     titleStyle = _G.VapserTitleStyle,       -- >>> TITLE STYLE <<<
     vapserGuiScaleValue = vapserGuiScaleValue,
     vapserProgressBarScaleValue = vapserProgressBarScaleValue,
-    introEnabled = _introEnabled == true,
-    selectedIntroMusic = selectedIntroMusic,
     musicSelectedSong = selectedMusicSong,
     musicVolume = musicPlayerVolume,
     musicSpeed = musicPlayerSpeed,
@@ -5829,8 +5646,6 @@ function loadVapserConfig()
     end
   end
   -- <<< CUSTOM ANIM PACK END
-  if data.introEnabled ~= nil then _introEnabled = data.introEnabled == true end
-  if data.selectedIntroMusic and INTRO_MUSIC_OPTIONS[data.selectedIntroMusic] then selectedIntroMusic = data.selectedIntroMusic end
   if data.musicSelectedSong and MUSIC_PLAYER_OPTIONS and MUSIC_PLAYER_OPTIONS[data.musicSelectedSong] then selectedMusicSong = data.musicSelectedSong end
   if data.musicVolume ~= nil then musicPlayerVolume = math.clamp(tonumber(data.musicVolume) or 1, 0, 2) end
   if data.musicSpeed ~= nil then musicPlayerSpeed = math.clamp(tonumber(data.musicSpeed) or 1, 0.1, 2) end
@@ -13167,83 +12982,12 @@ _G.VapserApplyTabPosition(_G._VapserTabPosition)
   HeaderDivider.BackgroundColor3 = P.line
   HeaderDivider.BackgroundTransparency = 0.55
 
-  -- pill con il numero di giocatori
-  local pill = mk("Frame", {
-    Name = "PlayerCount",
-    AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -196, 0, 17),
-    Size = UDim2.new(0, 112, 0, 30),
-    BackgroundColor3 = P.card,
-    BackgroundTransparency = 0.2,
-    BorderSizePixel = 0,
-    ZIndex = 5,
-  }, Main)
-  mk("UICorner", {CornerRadius = UDim.new(0, 15)}, pill)
-  mkStroke(pill, P.line, 1, 0.45)
-  local pillDot = mk("Frame", {
-    BackgroundColor3 = P.accentHi,
-    BorderSizePixel = 0,
-    Position = UDim2.new(0, 12, 0.5, -3),
-    Size = UDim2.new(0, 6, 0, 6),
-    ZIndex = 6,
-  }, pill)
-  mk("UICorner", {CornerRadius = UDim.new(1, 0)}, pillDot)
-  local countLbl = mk("TextLabel", {
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0, 26, 0, 0),
-    Size = UDim2.new(1, -30, 1, 0),
-    Font = Enum.Font.GothamBold,
-    Text = "0 players",
-    TextSize = 11,
-    TextColor3 = P.text,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 6,
-  }, pill)
-  local function updCount()
-    local n = #Players:GetPlayers()
-    countLbl.Text = tostring(n) .. (n == 1 and " player" or " players")
-  end
-  updCount()
-  Players.PlayerAdded:Connect(updCount)
-  Players.PlayerRemoving:Connect(function() task.defer(updCount) end)
-
-  -- Save: salva la config con la funzione che lo script gia' usa.
-  -- Il caricamento della config avviene solo all'avvio dello script, per
-  -- questo non c'e' un tasto Load.
-  local saveBtn = mk("TextButton", {
-    Name = "SaveButton",
-    AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -122, 0, 17),
-    Size = UDim2.new(0, 66, 0, 30),
-    BackgroundColor3 = P.accentHi,
-    BorderSizePixel = 0,
-    AutoButtonColor = false,
-    Text = "Save",
-    Font = Enum.Font.GothamBold,
-    TextSize = 12,
-    TextColor3 = P.dark,
-    ZIndex = 6,
-  }, Main)
-  mk("UICorner", {CornerRadius = UDim.new(0, 9)}, saveBtn)
-  local saveToken = 0
-  saveBtn.Activated:Connect(function()
-    saveToken = saveToken + 1
-    local my = saveToken
-    local ok = false
-    if canSaveConfig and type(saveVapserConfig) == "function" then
-      ok = pcall(saveVapserConfig)
-    end
-    saveBtn.Text = ok and "Saved" or "Failed"
-    task.delay(1.4, function()
-      if my == saveToken and saveBtn.Parent then saveBtn.Text = "Save" end
-    end)
-  end)
-
   VapserLockTopButton.AnchorPoint = Vector2.new(1, 0)
   VapserLockTopButton.Position = UDim2.new(1, -58, 0, 17)
   VapserLockTopButton.Size = UDim2.new(0, 56, 0, 30)
   VapserLockTopButton.BackgroundColor3 = P.card
   VapserLockTopButton.TextSize = 10
+  VapserLockTopButton.Visible = false
 
   Close.AnchorPoint = Vector2.new(1, 0)
   Close.Position = UDim2.new(1, -16, 0, 17)
@@ -13564,46 +13308,6 @@ _G.VapserApplyTabPosition(_G._VapserTabPosition)
     TextTruncate = Enum.TextTruncate.AtEnd,
     ZIndex = 5,
   }, Av)
-
-  local function chip(x, nameStr)
-    local f = mk("Frame", {
-      Name = nameStr,
-      BackgroundColor3 = P.accent,
-      BackgroundTransparency = 0.82,
-      BorderSizePixel = 0,
-      Position = UDim2.new(0, x, 1, -38),
-      Size = UDim2.new(0, 90, 0, 26),
-      ZIndex = 5,
-    }, Av)
-    mk("UICorner", {CornerRadius = UDim.new(0, 8)}, f)
-    mkStroke(f, P.line, 1, 0.55)
-    return mk("TextLabel", {
-      BackgroundTransparency = 1,
-      Size = UDim2.new(1, 0, 1, 0),
-      Font = Enum.Font.GothamBold,
-      Text = "-",
-      TextSize = 11,
-      TextColor3 = P.text,
-      ZIndex = 6,
-    }, f)
-  end
-  local hpLbl = chip(14, "HealthChip")
-  local wsLbl = chip(108, "SpeedChip")
-
-  task.spawn(function()
-    while Av.Parent do
-      local ch = LP.Character
-      local hum = ch and ch:FindFirstChildOfClass("Humanoid")
-      if hum then
-        hpLbl.Text = "HP " .. tostring(math.floor(hum.Health + 0.5))
-        wsLbl.Text = "Speed " .. tostring(math.floor(hum.WalkSpeed + 0.5))
-      else
-        hpLbl.Text = "HP -"
-        wsLbl.Text = "Speed -"
-      end
-      task.wait(0.5)
-    end
-  end)
 
   local avatarConn, avatarModel, avatarGen = nil, nil, 0
 
@@ -26746,7 +26450,20 @@ end
   end, 0.30, 1.35)
 
   do
-    local row = baseRow(Settings, "Reset Mobile Buttons", 11)
+    local row, setVisual = _G.VapserActionToggleRow(Settings, "Lock GUI", _G.VapserGuiLocked == true, 11)
+    setLockGuiVisual = setVisual
+    local btn = row and row:FindFirstChild("ToggleButton")
+    if btn then
+      btn.Activated:Connect(function()
+        _G.VapserGuiLocked = not (_G.VapserGuiLocked == true)
+        if VapserUpdateGuiLockVisual then VapserUpdateGuiLockVisual() end
+        saveVapserConfig()
+      end)
+    end
+  end
+
+  do
+    local row = baseRow(Settings, "Reset Mobile Buttons", 12)
     local mobResetBg = Instance.new("Frame")
     mobResetBg.Name = "ResetMobileButtonsBg"
     mobResetBg.BackgroundColor3 = Color3.fromRGB(147, 51, 234)
@@ -26801,109 +26518,6 @@ end
         if _G.VapserApplyMobileButtonSize then _G.VapserApplyMobileButtonSize() end
         saveVapserConfig()
       end
-    end)
-  end
-
-  section(Settings, "INTRO", 50)
-  do
-    local row, setVisual = toggleRow(Settings, "Intro", _introEnabled, 51)
-    setIntroVisual = setVisual
-    local btn = row and row:FindFirstChild("ToggleButton")
-    if btn then
-      btn.Activated:Connect(function()
-        _introEnabled = not _introEnabled
-        if not _introEnabled then stopIntroPlayback(); stopIntroPreview() end
-        if setIntroVisual then setIntroVisual(_introEnabled) end
-        saveVapserConfig()
-      end)
-    end
-    if setIntroVisual then setIntroVisual(_introEnabled) end
-  end
-
-  do
-    local row = Instance.new("Frame")
-    row.Name = "Intro Song"
-    row.BackgroundColor3 = COLORS.row
-    row.BackgroundTransparency = 0.22
-    row.Size = UDim2.new(1, -4, 0, 42)
-    row.BorderSizePixel = 0
-    row.LayoutOrder = 52
-    row.ZIndex = 4
-    row.Parent = Settings
-    corner(row, 10)
-    stroke(row, COLORS.strokeSoft, 1.15, 0.32)
-
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.BackgroundTransparency = 1
-    label.Text = "Intro Song"
-    label.TextColor3 = Color3.fromRGB(245,245,255)
-    label.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-    label.TextStrokeTransparency = 0.25
-    label.TextSize = 11
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Position = UDim2.new(0, 12, 0, 0)
-    label.Size = UDim2.new(1, -145, 1, 0)
-    label.ZIndex = 5
-    label.Parent = row
-
-    local songBg = Instance.new("Frame")
-    songBg.Name = "IntroSongBg"
-    songBg.BackgroundColor3 = Color3.fromRGB(147, 51, 234)
-    songBg.BackgroundTransparency = 0
-    songBg.BorderSizePixel = 0
-    songBg.Size = UDim2.new(0, 120, 0, 30)
-    songBg.Position = UDim2.new(1, -130, 0.5, -15)
-    songBg.ClipsDescendants = true
-    songBg.ZIndex = 6
-    songBg.Parent = row
-    corner(songBg, 15)
-    stroke(songBg, Color3.fromRGB(216, 180, 254), 1.5, 0.15)
-
-    local btn = Instance.new("TextButton")
-    btn.Name = "Intro Song Button"
-    btn.BackgroundTransparency = 1
-    btn.BorderSizePixel = 0
-    btn.Text = getIntroSongName()
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    btn.TextStrokeTransparency = 0.3
-    btn.TextSize = 12
-    btn.Font = Enum.Font.GothamBlack
-    btn.AutoButtonColor = false
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.Position = UDim2.new(0, 0, 0, 0)
-    btn.ZIndex = 7
-    btn.Parent = songBg
-
-    local songGrad = Instance.new("UIGradient")
-    songGrad.Color = ColorSequence.new({
-      ColorSequenceKeypoint.new(0, Color3.fromRGB(202, 148, 255)),
-      ColorSequenceKeypoint.new(0.5, Color3.fromRGB(147, 51, 234)),
-      ColorSequenceKeypoint.new(1, Color3.fromRGB(101, 31, 190)),
-    })
-    songGrad.Rotation = 18
-    songGrad.Parent = songBg
-    _G._VapserRegAccent(songBg, songGrad, "button")
-
-    btn.MouseEnter:Connect(function()
-      tween(songBg, {Size = UDim2.new(0, 126, 0, 32), Position = UDim2.new(1, -133, 0.5, -16)}, 0.12)
-    end)
-    btn.MouseLeave:Connect(function()
-      tween(songBg, {Size = UDim2.new(0, 120, 0, 30), Position = UDim2.new(1, -130, 0.5, -15)}, 0.12)
-    end)
-
-    setIntroSongVisual = function()
-      if btn and btn.Parent then btn.Text = getIntroSongName(); btn.TextColor3 = Color3.fromRGB(255,255,255) end
-    end
-
-    btn.MouseButton1Click:Connect(function()
-      selectedIntroMusic = selectedIntroMusic + 1
-      if selectedIntroMusic > #INTRO_MUSIC_OPTIONS then selectedIntroMusic = 1 end
-      if setIntroSongVisual then setIntroSongVisual() end
-      previewIntroMusic(selectedIntroMusic)
-      saveVapserConfig()
     end)
   end
 
@@ -27778,11 +27392,7 @@ end
       if _G.VapserApplyTitleStyle then pcall(_G.VapserApplyTitleStyle, 1) end
       if _G.VapserRefreshTitleStyleSelector then pcall(_G.VapserRefreshTitleStyleSelector) end
       -- <<< TAB POSITION END
-      selectedIntroMusic = 1; _introEnabled = true
       headlessEnabled = false; korbloxEnabled = false
-      if setIntroVisual then setIntroVisual(_introEnabled) end
-      if setIntroSongVisual then setIntroSongVisual() end
-      stopIntroPlayback(); stopIntroPreview()
       -- Reset Music Player
       selectedMusicSong = 1; musicPlayerVolume = 1; musicPlayerSpeed = 1
       musicAutoPlayNext = false; musicShuffleEnabled = false; musicLoopEnabled = false
@@ -28841,335 +28451,14 @@ end
 _G.__VapserDuelsSetupMinimizeToggle()
 
 _G.__VapserDuelsRunIntro = function()
-  local TS = TweenService
-  local introGuiParent = Gui and Gui.Parent or HubGui
-  local origSize = FULL_MAIN_SIZE or Main.Size
-  local wasMinimizedBeforeIntro = (_G.__VapserDuelsMinimized == true)
-
-  if not _introEnabled then
-    stopIntroPlayback()
-    stopIntroPreview()
-    Main.Size = origSize
-    if not wasMinimizedBeforeIntro then
-      Main.Visible = true
-      MiniFrame.Visible = false
-    else
-      Main.Visible = false
-      MiniFrame.Visible = true
-    end
-    return
-  end
-
-  playIntroMusic()
-  Main.Visible = false
-  MiniFrame.Visible = false
-  Main.Size = UDim2.new(0, 0, 0, 0)
-
-  task.spawn(function()
-    local introGui = Instance.new("ScreenGui")
-    introGui.Name = "VapserHubIntro"
-    introGui.IgnoreGuiInset = true
-    introGui.DisplayOrder = 100
-    introGui.ResetOnSpawn = false
-    introGui.Parent = introGuiParent
-    local introActive = true
-
-    function finishIntro()
-      if not introActive then return end
-      introActive = false
-      stopIntroPlayback()
-      MiniFrame.Visible = false
-      Main.Visible = true
-      pcall(function()
-        TS:Create(Main, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = origSize}):Play()
-      end)
-      task.delay(0.75, function()
-        pcall(function() introGui:Destroy() end)
-      end)
-    end
-
-    local darkBg = Instance.new("Frame", introGui)
-    darkBg.Size = UDim2.new(1, 0, 1, 0)
-    darkBg.BackgroundColor3 = Color3.fromRGB(24, 16, 40)
-    darkBg.BackgroundTransparency = 1
-    darkBg.BorderSizePixel = 0
-    darkBg.ZIndex = 1
-
-    local bgGrad = Instance.new("UIGradient", darkBg)
-    bgGrad.Color = ColorSequence.new({
-      ColorSequenceKeypoint.new(0, Color3.fromRGB(49, 36, 59)),
-      ColorSequenceKeypoint.new(0.45, Color3.fromRGB(34, 26, 50)),
-      ColorSequenceKeypoint.new(1, Color3.fromRGB(26, 18, 42))
-    })
-    bgGrad.Rotation = 90
-
-    local redWash = Instance.new("Frame", introGui)
-    redWash.Size = UDim2.new(1,0,1,0)
-    redWash.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    redWash.BackgroundTransparency = 1
-    redWash.BorderSizePixel = 0
-    redWash.ZIndex = 2
-
-local skipBtn = Instance.new("TextButton", introGui)
-skipBtn.Name = "SkipIntro"
-skipBtn.AnchorPoint = Vector2.new(1,0)
-skipBtn.Position = UDim2.new(1,-22,0,22)
-skipBtn.Size = UDim2.new(0,104,0,34)
-skipBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)  -- base
-skipBtn.BackgroundTransparency = 0
-skipBtn.BorderSizePixel = 0
-skipBtn.Text = "SKIP INTRO"
-skipBtn.TextColor3 = Color3.fromRGB(0, 0, 0)  -- TESTO NERO
-skipBtn.TextSize = 11
-skipBtn.Font = Enum.Font.GothamBlack
-skipBtn.AutoButtonColor = false
-skipBtn.ZIndex = 80
-Instance.new("UICorner", skipBtn).CornerRadius = UDim.new(0,10)
-
--- Gradiente (i colori verranno aggiornati)
-local grad = Instance.new("UIGradient", skipBtn)
-grad.Rotation = 0
-grad.Transparency = NumberSequence.new(0)
-
--- Colori iniziali (galattici)
-grad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(220, 100, 255)),
-    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(120, 60, 220)),
-    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(40, 20, 150)),
-})
-
--- Funzione per ruotare le tonalità (hue) di un colore
-local function shiftHue(color, offset)
-    local r, g, b = color.R, color.G, color.B
-    local max = math.max(r, g, b)
-    local min = math.min(r, g, b)
-    local h, s, v
-    v = max
-    local d = max - min
-    s = (max == 0) and 0 or d / max
-    if max == min then
-        h = 0
-    else
-        if max == r then
-            h = (g - b) / d + (g < b and 6 or 0)
-        elseif max == g then
-            h = (b - r) / d + 2
-        else
-            h = (r - g) / d + 4
-        end
-        h = h / 6
-    end
-    h = (h + offset) % 1
-    local function hueToRgb(p, q, t)
-        if t < 0 then t = t + 1 end
-        if t > 1 then t = t - 1 end
-        if t < 1/6 then return p + (q - p) * 6 * t end
-        if t < 1/2 then return q end
-        if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
-        return p
-    end
-    if s == 0 then
-        return Color3.fromRGB(v, v, v)
-    end
-    local q = v * (1 - s * (1 - (h * 6 % 1)))
-    local p = v * (1 - s)
-    local tr = v
-    local tg = v
-    local tb = v
-    if h < 1/6 then
-        tr = v
-        tg = v * (1 - s * (1 - (h * 6)))
-        tb = v * (1 - s)
-    elseif h < 1/3 then
-        tr = v * (1 - s * (h * 6 - 1))
-        tg = v
-        tb = v * (1 - s)
-    elseif h < 1/2 then
-        tr = v * (1 - s)
-        tg = v
-        tb = v * (1 - s * (1 - (h * 6 - 2)))
-    elseif h < 2/3 then
-        tr = v * (1 - s)
-        tg = v * (1 - s * (h * 6 - 3))
-        tb = v
-    elseif h < 5/6 then
-        tr = v * (1 - s * (1 - (h * 6 - 4)))
-        tg = v * (1 - s)
-        tb = v
-    else
-        tr = v
-        tg = v * (1 - s)
-        tb = v * (1 - s * (h * 6 - 5))
-    end
-    return Color3.new(tr, tg, tb)
-end
-
--- Animazione: cambia i colori lentamente
-task.spawn(function()
-    local hueOffset = 0
-    local speed = 0.002  -- velocità lenta per effetto morbido
-    while skipBtn and skipBtn.Parent do
-        hueOffset = (hueOffset + speed) % 1
-        
-        -- Colori base (galattici) con tonalità spostata
-        local c1 = shiftHue(Color3.fromRGB(220, 100, 255), hueOffset)
-        local c2 = shiftHue(Color3.fromRGB(120, 60, 220), hueOffset)
-        local c3 = shiftHue(Color3.fromRGB(40, 20, 150), hueOffset)
-        
-        grad.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, c1),
-            ColorSequenceKeypoint.new(0.50, c2),
-            ColorSequenceKeypoint.new(1.00, c3),
-        })
-        
-        task.wait(0.05)
-    end
-end)
-
-skipBtn.MouseButton1Click:Connect(finishIntro)
-
-local center = Instance.new("Frame", introGui)
-center.AnchorPoint = Vector2.new(0.5,0.5)
-center.Position = UDim2.new(0.5,0,0.5,0)
-center.Size = UDim2.new(0,660,0,250)
-center.BackgroundTransparency = 1
-center.ZIndex = 40
-
-local lineTop = Instance.new("Frame", center)
-lineTop.AnchorPoint = Vector2.new(0.5,0)
-lineTop.Position = UDim2.new(0.5,0,0,58)
-lineTop.Size = UDim2.new(0,0,0,2)  -- parte da 0, poi si espande
-lineTop.BackgroundColor3 = Color3.fromRGB(255, 255, 255)  -- base per gradiente
-lineTop.BackgroundTransparency = 0
-lineTop.BorderSizePixel = 0
-lineTop.ZIndex = 41
-
-local lineTopGrad = Instance.new("UIGradient", lineTop)
-lineTopGrad.Rotation = 0
-lineTopGrad.Transparency = NumberSequence.new(0)
-lineTopGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(220, 100, 255)),
-    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(120, 60, 220)),
-    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(40, 20, 150)),
-})
-
-local lineBot = Instance.new("Frame", center)
-lineBot.AnchorPoint = Vector2.new(0.5,1)
-lineBot.Position = UDim2.new(0.5,0,1,-8)
-lineBot.Size = UDim2.new(0,0,0,2)  -- parte da 0, poi si espande
-lineBot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)  -- base per gradiente
-lineBot.BackgroundTransparency = 0
-lineBot.BorderSizePixel = 0
-lineBot.ZIndex = 41
-
-local lineBotGrad = Instance.new("UIGradient", lineBot)
-lineBotGrad.Rotation = 0
-lineBotGrad.Transparency = NumberSequence.new(0)
-lineBotGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(220, 100, 255)),
-    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(120, 60, 220)),
-    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(40, 20, 150)),
-})
-
-    local titleShadow = Instance.new("TextLabel", center)
-    titleShadow.Size = UDim2.new(1,0,0,86)
-    titleShadow.Position = UDim2.new(0,4,0,83)
-    titleShadow.BackgroundTransparency = 1
-    titleShadow.Text = "Vapser Hub"
-    titleShadow.TextColor3 = Color3.fromRGB(0,0,0)
-    titleShadow.Font = Enum.Font.GothamBlack
-    titleShadow.TextSize = 72
-    titleShadow.TextTransparency = 1
-    titleShadow.TextStrokeTransparency = 1
-    titleShadow.ZIndex = 42
-
-local title = Instance.new("TextLabel", center)
-title.Size = UDim2.new(1,0,0,86)
-title.Position = UDim2.new(0,0,0,78)
-title.BackgroundTransparency = 1
-title.Text = "Vapser Hub"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBlack
-title.TextSize = 72
-title.TextTransparency = 1
-title.TextStrokeTransparency = 1
-title.TextStrokeColor3 = Color3.fromRGB(51, 43, 65)
-title.ZIndex = 43
-
-local titleGrad = Instance.new("UIGradient", title)
-titleGrad.Rotation = 0
-titleGrad.Transparency = NumberSequence.new(0)
-titleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(220, 100, 255)),
-    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(120, 60, 220)),
-    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(40, 20, 150)),
-})
-
-
-
-local subtitle = Instance.new("TextLabel", center)
-subtitle.Size = UDim2.new(1,0,0,26)
-subtitle.Position = UDim2.new(0,0,0,169)
-subtitle.BackgroundTransparency = 1
-subtitle.Text = "Made By @ironl @d1v1ne | .gg/uraniumm @hb0u @aggredire."
-subtitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-subtitle.Font = Enum.Font.GothamMedium
-subtitle.TextSize = 19
-subtitle.TextTransparency = 1
-subtitle.ZIndex = 43
-
-local subGrad = Instance.new("UIGradient", subtitle)
-subGrad.Rotation = 0
-subGrad.Transparency = NumberSequence.new(0)
-subGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(200, 150, 255)),
-    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(150, 100, 230)),
-    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(80, 60, 200)),
-})
-
-
-
-
-
-    TS:Create(darkBg, TweenInfo.new(0.65), {BackgroundTransparency = 0.22}):Play()
-    task.wait(0.85)
-
-    TS:Create(lineTop, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0,500,0,2)}):Play()
-    TS:Create(lineBot, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0,500,0,2)}):Play()
-
-    task.wait(0.12)
-    TS:Create(titleShadow, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {TextTransparency = 0.35, TextStrokeTransparency = 1}):Play()
-    TS:Create(title, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {TextTransparency = 0, TextStrokeTransparency = 0.18}):Play()
-
-    task.wait(0.42)
-    TS:Create(subtitle, TweenInfo.new(0.42), {TextTransparency = 0}):Play()
-
-    for i = 1, 3 do
-      if not introActive then break end
-      TS:Create(title, TweenInfo.new(0.06), {TextColor3 = Color3.fromRGB(196, 155, 232)}):Play()
-      task.wait(0.06)
-      TS:Create(title, TweenInfo.new(0.06), {TextColor3 = Color3.fromRGB(245,245,245)}):Play()
-      task.wait(0.06)
-    end
-
-    task.wait(3.05)
-    if not introActive then return end
-
-    TS:Create(center, TweenInfo.new(0.55, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
-    TS:Create(title, TweenInfo.new(0.36), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
-    TS:Create(titleShadow, TweenInfo.new(0.36), {TextTransparency = 1}):Play()
-    TS:Create(subtitle, TweenInfo.new(0.32), {TextTransparency = 1}):Play()
-    TS:Create(lineTop, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,2)}):Play()
-    TS:Create(lineBot, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,2)}):Play()
-    TS:Create(darkBg, TweenInfo.new(0.75), {BackgroundTransparency = 1}):Play()
-
+  Main.Size = FULL_MAIN_SIZE or Main.Size
+  if _G.__VapserDuelsMinimized == true then
+    Main.Visible = false
+    MiniFrame.Visible = true
+  else
     Main.Visible = true
     MiniFrame.Visible = false
-    TS:Create(Main, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = origSize}):Play()
-    task.wait(0.9)
-    introActive = false
-    pcall(function() introGui:Destroy() end)
-  end)
+  end
 end
 
 _G.__VapserDuelsRunIntro()
