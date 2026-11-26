@@ -311,8 +311,8 @@ Config = {
 	autoLaggerSpd = false,
 	infJumpMode = "manual",
 	silentBatAim = false,
-	sbaEnemyPerm = true,
-	sbaEnemyRadio = false,
+	sbaEnemyPerm = false,
+	sbaEnemyRadio = true,
 	sbaRange = 50,
 	sbaTurnSpeed = 30,
 	ragdollTimerEnabled = false,
@@ -3138,6 +3138,9 @@ Config._buildHeadDisplay = function(discord)
 	uiScale.Name = "VX7HeadDisplayScale"
 	uiScale.Scale = math.clamp(tonumber(Config.billboardScale) or 0.5, 0.5, 2)
 	local function fn30(arg)
+		if true then
+			return
+		end
 		local active = Config._theme and (Config._theme.active or Config._theme.base)
 		local accent, accent2, uiGradient =
 			active and active.accent or (Color3.fromRGB(80, 170, 255)),
@@ -3516,6 +3519,9 @@ Config._fontIsAlternate = function(arg)
 	return false
 end
 Config._fontOriginalFallback = function(arg)
+	if arg.Name == "HeaderBrand" then
+		return Enum.Font.GothamBold
+	end
 	if arg:IsA("TextLabel") and (tonumber(arg.TextSize) or 0) >= 17 then
 		return Enum.Font.GothamBlack
 	end
@@ -4417,7 +4423,7 @@ local function fn39()
 	end
 	if v23.stealFreezePercent then
 		tbl35 = tonumber(v23.stealFreezePercent) or 85
-		Config.stealFreezePercent = tbl35 <= 77 and 75 or (tbl35 <= 82 and 80 or 85)
+		Config.stealFreezePercent = 85
 		if Config._syncStealFreezePercentChoice then
 			Config._syncStealFreezePercentChoice(
 				Config.stealFreezePercent == 75 and 1 or (Config.stealFreezePercent == 80 and 2 or 3)
@@ -4705,10 +4711,10 @@ local function fn39()
 		Config.silentBatAim = v23.silentBatAim
 	end
 	if v23.sbaEnemyPerm ~= nil then
-		Config.sbaEnemyPerm = v23.sbaEnemyPerm
+		Config.sbaEnemyPerm = false
 	end
 	if v23.sbaEnemyRadio ~= nil then
-		Config.sbaEnemyRadio = v23.sbaEnemyRadio
+		Config.sbaEnemyRadio = true
 	end
 	if v23.sbaRange ~= nil and v23.sbaRange > 0 then
 		Config.sbaRange = v23.sbaRange
@@ -4853,7 +4859,7 @@ local function fn39()
 	end
 	Config.autoPlayVersion = v23.autoPlayVersion == "V1" and "V1" or "V2"
 	if v23.batCounterMode ~= nil then
-		Config.batCounterMode = v23.batCounterMode == "TP Follow" and "TP Follow" or "Classic"
+		Config.batCounterMode = "Classic"
 	end
 	local function fn41(arg)
 		if not arg then
@@ -5065,7 +5071,7 @@ local function fn40(arg)
 		end
 		if arg.stealFreezePercent then
 			local n18 = tonumber(arg.stealFreezePercent) or 85
-			Config.stealFreezePercent = n18 <= 77 and 75 or (n18 <= 82 and 80 or 85)
+			Config.stealFreezePercent = 85
 			if Config._syncStealFreezePercentChoice then
 				Config._syncStealFreezePercentChoice(
 					Config.stealFreezePercent == 75 and 1 or (Config.stealFreezePercent == 80 and 2 or 3)
@@ -9614,6 +9620,8 @@ tbl31 = {
 			elseif arg.Name == "MinimizedAccent" then
 				fn70(arg, { BackgroundColor3 = arg2.accent })
 				return
+			elseif arg.Name == "MinimizedCircle" then
+				return
 			elseif arg.Name == "MinimizedStroke" then
 				fn70(arg, { Color = arg2.border })
 				return
@@ -10291,7 +10299,7 @@ tbl31 = {
 		uiGradient2.BackgroundTransparency = 1
 		uiGradient2.Text = "Sawyer Hub"
 		uiGradient2.TextColor3 = glass.text
-		uiGradient2.Font = Enum.Font.GothamBlack
+		uiGradient2.Font = Enum.Font.GothamBold
 		uiGradient2.TextSize = 24
 		uiGradient2.TextXAlignment = Enum.TextXAlignment.Center
 		uiGradient2.TextYAlignment = Enum.TextYAlignment.Center
@@ -10321,7 +10329,7 @@ tbl31 = {
 		frame4.Size = UDim2.new(0, 164, 0, 50)
 		frame4.Position = fn4(tbl2.minimized)
 		frame4.BackgroundColor3 = glass.top:Lerp(Color3.fromRGB(5, 6, 8), 0.3)
-		frame4.BackgroundTransparency = 0.1
+		frame4.BackgroundTransparency = 0
 		frame4.BorderSizePixel = 0
 		frame4.Visible = false
 		frame4.ZIndex = 20
@@ -10346,6 +10354,7 @@ tbl31 = {
 		})
 		textButton = Instance.new("Frame", frame4)
 		textButton.Name = "MinimizedAccent"
+		textButton.Visible = false
 		textButton.Size = UDim2.new(0, 3, 0, 26)
 		textButton.AnchorPoint = Vector2.new(0, 0.5)
 		textButton.Position = UDim2.new(0, 5, 0.5, 0)
@@ -10363,16 +10372,26 @@ tbl31 = {
 		character.Name = "MinimizedLogo"
 		character.Visible = false -- SH logo removed
 		textButton = Instance.new("TextLabel", frame4)
+		local minimizedCircle = Instance.new("Frame", frame4)
+		minimizedCircle.Name = "MinimizedCircle"
+		minimizedCircle.Size = UDim2.fromOffset(22, 22)
+		minimizedCircle.AnchorPoint = Vector2.new(0, 0.5)
+		minimizedCircle.Position = UDim2.new(0, 14, 0.5, 0)
+		minimizedCircle.BackgroundColor3 = Color3.fromRGB(76, 29, 140)
+		minimizedCircle.BackgroundTransparency = 0
+		minimizedCircle.BorderSizePixel = 0
+		minimizedCircle.ZIndex = 22
+		Instance.new("UICorner", minimizedCircle).CornerRadius = UDim.new(1, 0)
 		textButton.Name = "MinimizedBrand"
-		textButton.Size = UDim2.new(1, -40, 0, 28)
-		textButton.Position = UDim2.new(0, 8, 0.5, -14)
+		textButton.Size = UDim2.new(1, -52, 0, 28)
+		textButton.Position = UDim2.new(0, 44, 0.5, -14)
 		textButton.BackgroundTransparency = 1
 		textButton.Text = "Sawyer Hub"
 		textButton.RichText = false
 		textButton.TextColor3 = glass.text
-		textButton.Font = Enum.Font.GothamBlack
-		textButton.TextSize = 20
-		textButton.TextXAlignment = Enum.TextXAlignment.Center
+		textButton.Font = Enum.Font.GothamBold
+		textButton.TextSize = 18
+		textButton.TextXAlignment = Enum.TextXAlignment.Left
 		textButton.TextYAlignment = Enum.TextYAlignment.Center
 		textButton.TextStrokeColor3 = glass.bg
 		textButton.TextStrokeTransparency = 0.82
@@ -10382,6 +10401,7 @@ tbl31 = {
 		textButton.Visible = false
 		frame3 = Instance.new("TextLabel", frame4)
 		frame3.Name = "MinimizedOpen"
+		frame3.Visible = false
 		frame3.Size = UDim2.new(0, 27, 0, 24)
 		frame3.Position = UDim2.new(1, -34, 0.5, -12)
 		frame3.BackgroundColor3 = glass.panel
@@ -10394,11 +10414,11 @@ tbl31 = {
 		frame3.ZIndex = 22
 		mkCorner(frame3, 8)
 		frame4.MouseEnter:Connect(function()
-			TweenService:Create(frame4, TweenInfo.new(0.12), { BackgroundTransparency = 0.08 }):Play()
+			TweenService:Create(frame4, TweenInfo.new(0.12), { BackgroundTransparency = 0 }):Play()
 			TweenService:Create(uiStroke, TweenInfo.new(0.12), { Transparency = 0.16 }):Play()
 		end)
 		frame4.MouseLeave:Connect(function()
-			TweenService:Create(frame4, TweenInfo.new(0.12), { BackgroundTransparency = 0.1 }):Play()
+			TweenService:Create(frame4, TweenInfo.new(0.12), { BackgroundTransparency = 0 }):Play()
 			TweenService:Create(uiStroke, TweenInfo.new(0.12), { Transparency = 0.3 }):Play()
 		end)
 		local connection7, connection8, connection9, connection10, position, v42
@@ -10446,11 +10466,11 @@ tbl31 = {
 						{ Scale = 1 }
 					):Play()
 				end
-				frame4.BackgroundTransparency = 0.4
+				frame4.BackgroundTransparency = 0
 				TweenService:Create(
 					frame4,
 					TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-					{ BackgroundTransparency = 0.1 }
+					{ BackgroundTransparency = 0 }
 				):Play()
 				if modernOpenScale then
 					TweenService:Create(
@@ -10559,12 +10579,12 @@ tbl31 = {
 				TweenService:Create(
 					frame4,
 					TweenInfo.new(0.13, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
-					{ BackgroundTransparency = 0.42 }
+					{ BackgroundTransparency = 0 }
 				):Play()
 				task.delay(0.13, function()
 					if minimizeAnimationGeneration == Config._minimizeAnimationGeneration and not flag6 then
 						frame4.Visible = false
-						frame4.BackgroundTransparency = 0.1
+						frame4.BackgroundTransparency = 0
 						if vX7MinimizedScale then
 							vX7MinimizedScale.Scale = 1
 						end
@@ -13068,8 +13088,8 @@ tbl31 = {
 					textLabel2.TextSize = 12
 					textLabel2.TextXAlignment = Enum.TextXAlignment.Left
 					local stealFreezePercent = Config.stealFreezePercent or 85
-					stealFreezePercent = stealFreezePercent <= 77 and 75 or (stealFreezePercent <= 82 and 80 or 85)
-					Config.stealFreezePercent = stealFreezePercent
+					stealFreezePercent = 85
+					Config.stealFreezePercent = 85
 					Config._syncStealFreezePercentChoice = makeChoiceControl(
 						frame6,
 						{ "75%", "80%", "85%" },
@@ -13081,7 +13101,8 @@ tbl31 = {
 					)
 					fn81 = function()
 						local visible = Config.autoStealVersion ~= "V2"
-						frame6.Visible = visible
+						frame6.Visible = false
+						frame6:SetAttribute("AccordionConditionalHidden", true)
 						frame6.BackgroundTransparency = 0.4
 						textLabel2.TextColor3 = Color3.fromRGB(200, 200, 200)
 						for i, descendant in ipairs(frame6:GetDescendants()) do
@@ -14457,9 +14478,7 @@ tbl31 = {
 				textLabel2.Font = Enum.Font.GothamBold
 				textLabel2.TextSize = 12
 				textLabel2.TextXAlignment = Enum.TextXAlignment.Left
-				if Config.batCounterMode ~= "TP Follow" then
-					Config.batCounterMode = "Classic"
-				end
+				Config.batCounterMode = "Classic"
 				local v45 = makeChoiceControl(
 					uiListLayout2,
 					{ "Classic", "TP Follow" },
@@ -14473,6 +14492,8 @@ tbl31 = {
 					v45(Config.batCounterMode == "TP Follow" and 2 or 1)
 				end
 			end
+			uiListLayout2.Visible = false
+			uiListLayout2:SetAttribute("AccordionConditionalHidden", true)
 			mkAccordion(frame6)
 			uiListLayout2 = Instance.new("Frame", v43)
 			uiListLayout2.Size = UDim2.new(1, 0, 0, 0)
@@ -15386,7 +15407,11 @@ tbl31 = {
 				uiListLayout.Font = Enum.Font.GothamBold
 				uiListLayout.TextSize = 12
 				uiListLayout.TextXAlignment = Enum.TextXAlignment.Left
-				local n20 = Config.sbaEnemyPerm and not Config.sbaEnemyRadio and 1 or 2
+				Config.sbaEnemyPerm = false
+				Config.sbaEnemyRadio = true
+				frame6.Visible = false
+				frame6:SetAttribute("AccordionConditionalHidden", true)
+				local n20 = 2
 				makeChoiceControl(frame6, { "Body Perm", "Body Radio" }, n20, function(arg, arg2)
 					n20 = arg2
 					Config.sbaEnemyPerm = arg == "Body Perm"
@@ -18292,110 +18317,64 @@ tbl31 = {
 			makeGap(2)
 			do
 				local frame6 = Instance.new("Frame", v43)
-				frame6.Size = UDim2.new(1, 0, 0, 44)
-				frame6.BackgroundTransparency = 1
+				frame6.Size = UDim2.new(1, 0, 0, 40)
 				frame6.BorderSizePixel = 0
 				frame6.LayoutOrder = LO()
+				frame6.BackgroundColor3 = glass.panel
+				frame6.BackgroundTransparency = 0.4
+				mkCorner(frame6, 10)
+				mkAnimStroke(frame6, 1)
 				local textLabel2 = Instance.new("TextLabel", frame6)
-				textLabel2.Size = UDim2.new(0, 80, 1, 0)
-				textLabel2.Position = UDim2.new(0, 14, 0, 0)
+				textLabel2.Size = UDim2.new(1, -150, 1, 0)
+				textLabel2.Position = UDim2.fromOffset(14, 0)
 				textLabel2.BackgroundTransparency = 1
 				textLabel2.Text = "Float Size"
 				textLabel2.TextColor3 = Color3.fromRGB(200, 200, 200)
 				textLabel2.Font = Enum.Font.GothamBold
 				textLabel2.TextSize = 12
 				textLabel2.TextXAlignment = Enum.TextXAlignment.Left
-				local textLabel3 = Instance.new("TextLabel", frame6)
-				textLabel3.Size = UDim2.new(0, 40, 0, 14)
-				textLabel3.Position = UDim2.new(1, -52, 0, 2)
-				textLabel3.BackgroundTransparency = 1
-				textLabel3.Text = string.format("%.1f", Config.floatScale or 0.7)
-				textLabel3.TextColor3 = Color3.fromRGB(185, 185, 195)
-				textLabel3.Font = Enum.Font.GothamBold
-				textLabel3.TextSize = 10
-				textLabel3.TextXAlignment = Enum.TextXAlignment.Right
-				local frame7 = Instance.new("Frame", frame6)
-				frame7.Size = UDim2.new(1, -110, 0, 8)
-				frame7.Position = UDim2.new(0, 90, 0.5, -4)
-				frame7.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-				frame7.BorderSizePixel = 0
-				frame7.ZIndex = 5
-				mkCorner(frame7, 4)
-				mkStroke(frame7, Color3.fromRGB(90, 90, 98), 0.5)
-				local frame8, n21, n22 = Instance.new("Frame", frame7), 0.5, 2
-				local function fn83()
-					return ((Config.floatScale or 0.7) - n21) / (n22 - n21)
-				end
-				frame8.Size = UDim2.new(fn83(), 0, 1, 0)
-				frame8.BackgroundColor3 = Color3.fromRGB(220, 220, 230)
-				frame8.BorderSizePixel = 0
-				frame8.ZIndex = 6
-				mkCorner(frame8, 4)
-				local textButton3 = Instance.new("TextButton", frame7)
-				textButton3.Size = UDim2.new(0, 18, 0, 18)
-				textButton3.AnchorPoint = Vector2.new(0.5, 0.5)
-				textButton3.Position = UDim2.new(fn83(), 0, 0.5, 0)
-				textButton3.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-				textButton3.BorderSizePixel = 0
-				textButton3.ZIndex = 7
-				textButton3.Text = ""
-				mkCorner(textButton3, 9)
-				mkStroke(textButton3, Color3.fromRGB(140, 140, 150), 1)
-				local function fn84(arg)
-					Config.floatScale = math.clamp(arg, n21, n22)
+				local minusButton = Instance.new("TextButton", frame6)
+				minusButton.Size = UDim2.fromOffset(32, 26)
+				minusButton.Position = UDim2.new(1, -132, 0.5, -13)
+				minusButton.BorderSizePixel = 0
+				minusButton.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
+				minusButton.Text = "-"
+				minusButton.TextColor3 = Color3.fromRGB(225, 225, 230)
+				minusButton.Font = Enum.Font.GothamBold
+				minusButton.TextSize = 18
+				mkCorner(minusButton, 7)
+				mkStroke(minusButton, Color3.fromRGB(90, 90, 98), 0.7)
+				local valueLabel = Instance.new("TextLabel", frame6)
+				valueLabel.Size = UDim2.fromOffset(58, 26)
+				valueLabel.Position = UDim2.new(1, -96, 0.5, -13)
+				valueLabel.BackgroundTransparency = 1
+				valueLabel.Text = string.format("%.2fx", Config.floatScale or 0.7)
+				valueLabel.TextColor3 = Color3.fromRGB(220, 220, 230)
+				valueLabel.Font = Enum.Font.GothamBold
+				valueLabel.TextSize = 11
+				local plusButton = Instance.new("TextButton", frame6)
+				plusButton.Size = UDim2.fromOffset(32, 26)
+				plusButton.Position = UDim2.new(1, -34, 0.5, -13)
+				plusButton.BorderSizePixel = 0
+				plusButton.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
+				plusButton.Text = "+"
+				plusButton.TextColor3 = Color3.fromRGB(225, 225, 230)
+				plusButton.Font = Enum.Font.GothamBold
+				plusButton.TextSize = 16
+				mkCorner(plusButton, 7)
+				mkStroke(plusButton, Color3.fromRGB(90, 90, 98), 0.7)
+				local function stepFloatSize(direction)
+					local newScale = math.floor(((Config.floatScale or 0.7) + direction * 0.05) * 100 + 0.5) / 100
+					Config.floatScale = math.clamp(newScale, 0.5, 2)
 					fn8(Config.floatScale)
-					frame8.Size = UDim2.new(fn83(), 0, 1, 0)
-					textButton3.Position = UDim2.new(fn83(), 0, 0.5, 0)
-					textLabel3.Text = string.format("%.1f", Config.floatScale)
+					valueLabel.Text = string.format("%.2fx", Config.floatScale)
 					fn34()
 				end
-				local flag14, n23, flag15 = false, 0, false
-				local function fn85(arg)
-					return (arg.Position.X - frame7.AbsolutePosition.X) / frame7.AbsoluteSize.X
-				end
-				textButton3.InputBegan:Connect(function(input)
-					if
-						input.UserInputType == Enum.UserInputType.MouseButton1
-						or input.UserInputType == Enum.UserInputType.Touch
-					then
-						flag15, flag14 = true, true
-						n23 = textButton3.Position.X.Scale - fn85(input)
-					end
+				minusButton.MouseButton1Click:Connect(function()
+					stepFloatSize(-1)
 				end)
-				frame7.InputBegan:Connect(function(input)
-					if
-						input.UserInputType == Enum.UserInputType.MouseButton1
-						or input.UserInputType == Enum.UserInputType.Touch
-					then
-						if flag15 then
-							flag15 = false
-							return
-						end
-						flag14, n23 = true, 0
-						fn84(n21 + math.clamp(fn85(input), 0, 1) * (n22 - n21))
-					end
-				end)
-				local connection14, connection15 =
-					UserInputService.InputChanged:Connect(function(input)
-						if flag14 and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-							fn84(n21 + math.clamp(fn85(input) + n23, 0, 1) * (n22 - n21))
-						end
-					end), UserInputService.InputEnded:Connect(function(input)
-						if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and flag14 then
-							flag14, flag15 = false, false
-						end
-					end)
-				frame7.AncestryChanged:Connect(function()
-					if not frame7.Parent then
-						if connection14 then
-							connection14:Disconnect()
-							connection14 = nil
-						end
-						if connection15 then
-							connection15:Disconnect()
-							connection15 = nil
-						end
-					end
+				plusButton.MouseButton1Click:Connect(function()
+					stepFloatSize(1)
 				end)
 			end
 			makeGap(2)
@@ -20929,47 +20908,6 @@ tbl31 = {
 			makeGap(8)
 			makeSectionHeader("Saved Config & Sharing")
 			makeGap(2)
-			do
-				local flag14, frame6 = Config.skipIntro == true, Instance.new("Frame", v43)
-				frame6.Size = UDim2.new(1, 0, 0, 44)
-				frame6.BorderSizePixel = 0
-				frame6.LayoutOrder = LO()
-				frame6.BackgroundColor3 = flag14 and glass.panelHover or glass.panel
-				frame6.BackgroundTransparency = 0.32
-				mkCorner(frame6, 10)
-				mkAnimStroke(frame6, 1)
-				local textLabel2 = Instance.new("TextLabel", frame6)
-				textLabel2.Size = UDim2.new(1, -66, 0, 23)
-				textLabel2.Position = UDim2.new(0, 14, 0, 2)
-				textLabel2.BackgroundTransparency = 1
-				textLabel2.Text = "Skip Intro"
-				textLabel2.TextColor3 = flag14 and glass.text or glass.muted
-				textLabel2.Font = Enum.Font.GothamBold
-				textLabel2.TextSize = 12
-				textLabel2.TextXAlignment = Enum.TextXAlignment.Left
-				local textLabel3 = Instance.new("TextLabel", frame6)
-				textLabel3.Size = UDim2.new(1, -66, 0, 15)
-				textLabel3.Position = UDim2.new(0, 14, 0, 24)
-				textLabel3.BackgroundTransparency = 1
-				textLabel3.Text = "Skip it on the next execution"
-				textLabel3.TextColor3 = glass.muted
-				textLabel3.Font = Enum.Font.GothamMedium
-				textLabel3.TextSize = 8
-				textLabel3.TextXAlignment = Enum.TextXAlignment.Left
-				mkSwitch(frame6, flag14, function(skipIntro)
-					flag14 = skipIntro
-					Config.skipIntro = skipIntro
-					Config.skipIntroConfigured = true
-					textLabel2.TextColor3 = skipIntro and glass.text or glass.muted
-					TweenService:Create(
-						frame6,
-						TweenInfo.new(0.15),
-						{ BackgroundColor3 = skipIntro and glass.panelHover or glass.panel }
-					):Play()
-					fn35()
-				end).Position =
-					UDim2.new(1, -50, 0.5, -12)
-			end
 			makeGap(2)
 			local frame6 = Instance.new("Frame", v43)
 			frame6.Size = UDim2.new(1, 0, 0, 34)
@@ -21675,20 +21613,6 @@ tbl31 = {
 				tbl11.guiHide = guiHide
 			end, "guiHide")
 			makeGap(10)
-			local frame6 = Instance.new("Frame", v43)
-			frame6.Size = UDim2.new(1, 0, 0, 44)
-			frame6.BackgroundTransparency = 1
-			frame6.BorderSizePixel = 0
-			frame6.LayoutOrder = LO()
-			local textLabel2 = Instance.new("TextLabel", frame6)
-			textLabel2.Size = UDim2.new(1, 0, 1, 0)
-			textLabel2.BackgroundTransparency = 1
-			textLabel2.Text = "Select a bind slot, then press a keyboard or controller button. ESC cancels; X clears."
-			textLabel2.TextColor3 = Color3.fromRGB(100, 100, 100)
-			textLabel2.Font = Enum.Font.Gotham
-			textLabel2.TextSize = 10
-			textLabel2.TextXAlignment = Enum.TextXAlignment.Left
-			textLabel2.TextWrapped = true
 			buildConfigSection()
 		end);
 		(function()
@@ -21791,6 +21715,21 @@ tbl31 = {
 					return a.LayoutOrder < b.LayoutOrder
 				end)
 				for i, c in ipairs(moveList) do
+					c.Parent = uiGradient2
+					c.LayoutOrder = maxOrder + 20 + i
+					maxOrder = maxOrder
+				end
+				maxOrder = maxOrder + 20 + #moveList
+				local mainMove, mainStart = {}, tbl46.LayoutOrder
+				for _, c in ipairs(character:GetChildren()) do
+					if c:IsA("GuiObject") and c.LayoutOrder >= mainStart then
+						table.insert(mainMove, c)
+					end
+				end
+				table.sort(mainMove, function(a, b)
+					return a.LayoutOrder < b.LayoutOrder
+				end)
+				for i, c in ipairs(mainMove) do
 					c.Parent = uiGradient2
 					c.LayoutOrder = maxOrder + 20 + i
 				end
