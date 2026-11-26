@@ -817,7 +817,7 @@ end
 local function fn13(buttonShape)
 	buttonShape = buttonShape == "Circle" and "Circle" or "Square"
 	Config.buttonShape = buttonShape
-	local udim = buttonShape == "Circle" and (UDim.new(1, 0)) or (UDim.new(0, 14))
+	local udim = buttonShape == "Circle" and (UDim.new(1, 0)) or (UDim.new(0.2, 0))
 	local function fn14(arg)
 		if not arg or not arg.Parent then
 			return
@@ -3239,6 +3239,37 @@ Config._buildHeadDisplay = function(discord)
 			Config._applyVisualTheme(n13)
 		end
 	end)
+	local function forceHeadPurple()
+		local purple = Color3.fromRGB(255, 50, 60)
+		local stroke = Color3.fromRGB(40, 20, 70)
+		if tbl27.discord and tbl27.discord.Parent then
+			tbl27.discord.TextColor3 = purple
+			tbl27.discord.TextStrokeColor3 = stroke
+			tbl27.discord.TextStrokeTransparency = 0.15
+			local g = tbl27.discord:FindFirstChildOfClass("UIGradient")
+			if g then g:Destroy() end
+		end
+		if tbl27.speed and tbl27.speed.Parent then
+			tbl27.speed.TextColor3 = purple
+			tbl27.speed.TextStrokeColor3 = stroke
+			tbl27.speed.TextStrokeTransparency = 0.15
+			local g = tbl27.speed:FindFirstChildOfClass("UIGradient")
+			if g then g:Destroy() end
+		end
+		for _, lab in ipairs(tbl27.brandLabels or {}) do
+			if lab and lab.Parent then
+				lab.TextColor3 = purple
+				lab.TextStrokeColor3 = stroke
+				lab.TextStrokeTransparency = 0.15
+				local g = lab:FindFirstChildOfClass("UIGradient")
+				if g then g:Destroy() end
+			end
+		end
+	end
+	forceHeadPurple()
+	task.defer(forceHeadPurple)
+	task.delay(0.5, forceHeadPurple)
+	task.delay(1.5, forceHeadPurple)
 	return true
 end
 Config._applyHeadDisplayScale = function(arg)
@@ -3249,15 +3280,15 @@ Config._applyHeadDisplayScale = function(arg)
 	return Config.billboardScale
 end
 local tbl28 = {
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
-	"rbxassetid://129525689023165",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
+	"rbxassetid://114878921210431",
 }
 local function fn30(arg)
 	for k, v20 in pairs(arg) do
@@ -3265,29 +3296,29 @@ local function fn30(arg)
 	end
 	return arg
 end
-Config._currentBackgroundAsset = "rbxassetid://129525689023165"
+Config._currentBackgroundAsset = "rbxassetid://114878921210431"
 Config.bgMode = "image"
 Config._theme = {
 	palettes = {
 		fn30({
-			bg = 1182748,
-			top = 1839658,
-			side = 1576998,
-			panel = 2496570,
-			hover = 4728942,
-			border = 9195740,
-			accent = 12482815,
-			accent2 = 10509055,
-			fill = 9851120,
-			fillIdle = 5911190,
-			statsBg = 1445412,
-			statsText = 16116735,
-			statsMuted = 11179720,
-			statsAccent = 12482815,
-			brand = 12482815,
-			text = 16116735,
-			muted = 11179720,
-			contrast = 1182748,
+			bg = 1705994,
+			top = 2493454,
+			side = 2099724,
+			panel = 3411988,
+			hover = 6297630,
+			border = 14428210,
+			accent = 16724540,
+			accent2 = 13113635,
+			fill = 15411250,
+			fillIdle = 6299170,
+			statsBg = 1574922,
+			statsText = 16777215,
+			statsMuted = 14466752,
+			statsAccent = 16724540,
+			brand = 16724540,
+			text = 16777215,
+			muted = 13808822,
+			contrast = 1705994,
 		}),
 		fn30({
 			bg = 854799,
@@ -3451,18 +3482,18 @@ Config._theme = {
 		})),
 	},
 	base = fn30({
-		bg = 1182748,
-		top = 1839658,
-		side = 1576998,
-		panel = 2496570,
-		hover = 4728942,
-		border = 9195740,
-		accent = 12482815,
-		accent2 = 10509055,
-		brand = 12482815,
-		text = 16116735,
-		muted = 11179720,
-		contrast = 1182748,
+		bg = 1705994,
+		top = 2493454,
+		side = 2099724,
+		panel = 3411988,
+		hover = 6297630,
+		border = 14428210,
+		accent = 16724540,
+		accent2 = 13113635,
+		brand = 16724540,
+		text = 16777215,
+		muted = 13808822,
+		contrast = 1705994,
 	}),
 	guiNames = {
 		Vx7ModernV2 = true,
@@ -4041,48 +4072,7 @@ local tbl34 = {
 	"smartBatTp",
 }
 local function fn37(arg, arg2, arg3, arg4)
-	if arg2 == nil then
-		return
-	end
-	if arg == "key" or arg == "gamepad" then
-		for i, v23 in ipairs(tbl34) do
-			if v23 ~= arg3 and tbl11[v23] == arg2 then
-				tbl11[v23] = nil
-			end
-		end
-		if type(tbl12) == "table" then
-			for k, v23 in pairs(tbl12) do
-				if k ~= arg4 and type(v23) == "table" and v23.value == arg2 then
-					tbl12[k] = nil
-				end
-			end
-		end
-	end
-	for k, v23 in pairs(tbl30) do
-		if k ~= arg3 and v23 and v23.type == arg and v23.value == arg2 then
-			tbl30[k] = nil
-			if tbl7[k] then
-				tbl7[k].Text = "---"
-			end
-			if handlers2[k] then
-				handlers2[k]()
-			end
-		end
-	end
-	if arg3 then
-		for k, v23 in pairs(tbl8) do
-			arg4 = if v23 == arg3 then k else if k == arg3 then v23 else nil
-			if arg4 and tbl30[arg4] and tbl30[arg4].type == arg and tbl30[arg4].value == arg2 then
-				tbl30[arg4] = nil
-				if tbl7[arg4] then
-					tbl7[arg4].Text = "---"
-				end
-				if handlers2[arg4] then
-					handlers2[arg4]()
-				end
-			end
-		end
-	end
+	-- Allow same key for multiple options (no conflict clearing)
 	pcall(function()
 		if Config._refreshKeybindDisplays then
 			Config._refreshKeybindDisplays()
@@ -4269,11 +4259,13 @@ local function fn39()
 		if not ok or type(result) ~= "string" or result == "" then
 			return false
 		end
-		if not pcall(function()
+		local decodeOk = pcall(function()
 			data = HttpService:JSONDecode(result)
-		end) or type(v23) ~= "table" then
+		end)
+		if not decodeOk or type(data) ~= "table" then
 			return false
 		end
+		v23 = data
 	end
 	local tbl35 = {
 		v3FillDuration = "number",
@@ -9547,6 +9539,18 @@ tbl31 = {
 			Config._theme.tweenCache = setmetatable({}, { __mode = "k" })
 		end
 		function Config._theme.applyObject(arg, arg2, arg3)
+			do
+				local modeBtnWalk = arg
+				for _ = 1, 8 do
+					if not modeBtnWalk then
+						break
+					end
+					if modeBtnWalk:GetAttribute("VX7ModeBtn") then
+						return
+					end
+					modeBtnWalk = modeBtnWalk.Parent
+				end
+			end
 			local flag6, flag7, statsBarRoot =
 				arg2 == Config._theme.palettes[1] and tbl27.sg ~= nil and (arg:IsDescendantOf(tbl27.sg)),
 				Config._theme.index == 9 and tbl27.sg ~= nil and (arg:IsDescendantOf(tbl27.sg)),
@@ -9685,7 +9689,12 @@ tbl31 = {
 										arg3,
 										{ { "text", "text" }, { "muted", "muted" }, { "contrast", "contrast" } }
 									))
-						if flag7 then
+						if v42 == "brand" then
+							fn70(arg, { TextColor3 = Color3.fromRGB(190, 120, 255) })
+							if arg.TextStrokeTransparency < 1 then
+								fn70(arg, { TextStrokeColor3 = Color3.fromRGB(40, 20, 70), TextStrokeTransparency = 0.15 })
+							end
+						elseif flag7 then
 							fn70(arg, { TextColor3 = Color3.fromRGB(255, 244, 198) })
 							if arg.TextStrokeTransparency < 1 then
 								fn70(
@@ -9700,7 +9709,7 @@ tbl31 = {
 							end
 						else
 							fn70(arg, {
-								TextColor3 = v42 == "brand" and (arg2.brand or arg2.accent) or (arg2[v42] or arg2.text),
+								TextColor3 = arg2[v42] or arg2.text,
 							})
 							if arg.TextStrokeTransparency < 1 then
 								fn70(arg, { TextStrokeColor3 = arg2.bg })
@@ -10060,14 +10069,14 @@ tbl31 = {
 			imageLabel.Size = UDim2.new(1, 0, 1, 0)
 			imageLabel.BackgroundTransparency = 1
 			imageLabel.BorderSizePixel = 0
-			imageLabel.Image = "rbxassetid://129525689023165"
+			imageLabel.Image = "rbxassetid://114878921210431"
 			imageLabel.ImageTransparency = 0
 			imageLabel.ScaleType = Enum.ScaleType.Crop
 			imageLabel.ZIndex = 0
 			mkCorner(imageLabel, 16)
 			v20 = imageLabel
 			local function fn72(arg, arg2)
-				local v42 = tbl28[arg] or "rbxassetid://129525689023165"
+				local v42 = tbl28[arg] or "rbxassetid://114878921210431"
 				if not v42 then
 					return nil
 				end
@@ -10126,9 +10135,9 @@ tbl31 = {
 						if arg ~= n13 then
 							return
 						end
-						imageLabel.Image = v42 or "rbxassetid://129525689023165"
-						v27 = v42 or "rbxassetid://129525689023165"
-						Config._currentBackgroundAsset = v42 or "rbxassetid://129525689023165"
+						imageLabel.Image = v42 or "rbxassetid://114878921210431"
+						v27 = v42 or "rbxassetid://114878921210431"
+						Config._currentBackgroundAsset = v42 or "rbxassetid://114878921210431"
 						imageLabel.ImageTransparency = 0
 						if Config._backgroundPreview then
 							Config._backgroundPreview.Image = v42
@@ -10211,7 +10220,7 @@ tbl31 = {
 		uiGradient.Size = UDim2.new(1, 0, 0, 68)
 		uiGradient.Position = UDim2.new(0, 0, 0, 0)
 		uiGradient.BackgroundColor3 = glass.top
-		uiGradient.BackgroundTransparency = 0.12
+		uiGradient.BackgroundTransparency = 1
 		uiGradient.BorderSizePixel = 0
 		uiGradient.Active = true
 		uiGradient.ZIndex = 10
@@ -10298,25 +10307,26 @@ tbl31 = {
 		uiGradient2.Position = UDim2.new(0, 16, 0, 0)
 		uiGradient2.BackgroundTransparency = 1
 		uiGradient2.Text = "Sawyer Hub"
-		uiGradient2.TextColor3 = glass.text
-		uiGradient2.Font = Enum.Font.GothamBold
+		uiGradient2.TextColor3 = Color3.fromRGB(255, 255, 255)
+		uiGradient2.Font = Enum.Font.GothamBlack
 		uiGradient2.TextSize = 24
 		uiGradient2.TextXAlignment = Enum.TextXAlignment.Center
 		uiGradient2.TextYAlignment = Enum.TextYAlignment.Center
+		uiGradient2.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+		uiGradient2.TextStrokeTransparency = 0.45
 		uiGradient2.ZIndex = 12
 		uiGradient2 = Instance.new("Frame", uiGradient)
 		local textButton2 = Instance.new("TextButton", uiGradient)
 		textButton2.Size = UDim2.new(0, 28, 0, 28)
 		textButton2.Position = UDim2.new(1, -32, 0.5, -14)
 		textButton2.BackgroundColor3 = glass.panel
-		textButton2.BackgroundTransparency = 0.18
+		textButton2.BackgroundTransparency = 1
 		textButton2.Text = "_"
 		textButton2.TextColor3 = glass.muted
 		textButton2.Font = Enum.Font.GothamBold
 		textButton2.TextSize = 16
 		textButton2.AutoButtonColor = false
 		mkCorner(textButton2, 8)
-		mkStroke(textButton2, glass.border, 0.8)
 		textButton2.ZIndex = 12
 		textButton2.MouseEnter:Connect(function()
 			textButton2.TextColor3 = glass.text
@@ -10388,13 +10398,13 @@ tbl31 = {
 		textButton.BackgroundTransparency = 1
 		textButton.Text = "Sawyer Hub"
 		textButton.RichText = false
-		textButton.TextColor3 = glass.text
-		textButton.Font = Enum.Font.GothamBold
+		textButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		textButton.Font = Enum.Font.GothamBlack
 		textButton.TextSize = 18
 		textButton.TextXAlignment = Enum.TextXAlignment.Left
 		textButton.TextYAlignment = Enum.TextYAlignment.Center
-		textButton.TextStrokeColor3 = glass.bg
-		textButton.TextStrokeTransparency = 0.82
+		textButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+		textButton.TextStrokeTransparency = 0.4
 		textButton.ZIndex = 22
 		textButton = Instance.new("TextLabel", frame4)
 		textButton.Name = "MinimizedSub"
@@ -10674,8 +10684,8 @@ tbl31 = {
 			end
 		end)
 		local tbl45, tbl46, tbl47 =
-			{ "Main", "Other", "Visuals", "Config" },
-			{ Main = "MAIN", Other = "COMBAT", Visuals = "VISUALS", Config = "CONFIG" },
+			{ "Main", "Other", "Visuals", "Config", "Keys" },
+			{ Main = "MAIN", Other = "COMBAT", Visuals = "VISUALS", Config = "CONFIG", Keys = "KEYS" },
 			{}
 		frame3, frame2 = 1 / #tbl45, Instance.new("Frame", character)
 		frame2.Name = "BottomNavigation"
@@ -11412,6 +11422,7 @@ tbl31 = {
 			mkStroke(frame6, arg3 and glass.accent2 or glass.border, arg3 and 1 or 0.7)
 			local frame7 = Instance.new("Frame", frame6)
 			frame7.Size = UDim2.new(0, 18, 0, 18)
+			frame7.Visible = false
 			frame7.Position = UDim2.new(0, 12, 0.5, -9)
 			frame7.BackgroundColor3 = glass.panel
 			frame7.BackgroundTransparency = 0.4
@@ -11428,7 +11439,7 @@ tbl31 = {
 			mkCorner(frame8, 4)
 			arg3 = Instance.new("TextLabel", frame6)
 			arg3.Size = UDim2.new(1, -220, 0, 20)
-			arg3.Position = UDim2.new(0, 40, 0, 11)
+			arg3.Position = UDim2.new(0, 14, 0, 21)
 			arg3.BackgroundTransparency = 1
 			arg3.Text = text
 			arg3.TextColor3 = glass.text
@@ -11439,7 +11450,8 @@ tbl31 = {
 			text.Size = UDim2.new(1, -220, 0, 14)
 			text.Position = UDim2.new(0, 40, 0, 32)
 			text.BackgroundTransparency = 1
-			text.Text = text2
+			text.Text = ""
+			text.Visible = false
 			text.TextColor3 = glass.muted
 			text.Font = Enum.Font.Gotham
 			text.TextSize = 8
@@ -11558,6 +11570,7 @@ tbl31 = {
 			frame9.BackgroundTransparency = 0.28
 			frame9.BorderSizePixel = 0
 			frame9.ZIndex = 9
+			frame9.Visible = false
 			mkCorner(frame9, 12)
 			mkStroke(frame9, Color3.fromRGB(82, 82, 94), 1)
 			local textLabel2 = Instance.new("TextLabel", frame9)
@@ -11726,8 +11739,8 @@ tbl31 = {
 			text2.Text = ""
 			text2.ZIndex = 11
 			text2.BorderSizePixel = 0
-			text2.Selectable = true
-			text2.Activated:Connect(fn78)
+			text2.Visible = false
+			text2.Selectable = false
 			text = Instance.new("TextButton", frame6)
 			text.Size = UDim2.new(1, 0, 1, 0)
 			text.BackgroundTransparency = 1
@@ -11914,20 +11927,24 @@ tbl31 = {
 			end
 		end
 		function Config._bindSimpleKey(arg, arg2, arg3, arg4)
+			if arg2 then arg2.Visible = false end
+			if arg3 then arg3.Visible = false end
 			local flag11 = false
 			local function fn77()
+				if not arg3 then return end
 				arg3.Text = tbl11[arg4] and (getKeyDisplayName(tbl11[arg4])) or "+"
 				arg3.TextColor3 = tbl11[arg4] and glass.text or glass.muted
 			end
 			local textButton3 = Instance.new("TextButton", arg)
-			textButton3.Size = arg2.Size
-			textButton3.Position = arg2.Position
+			textButton3.Size = UDim2.fromOffset(0, 0)
+			textButton3.Position = UDim2.fromOffset(0, 0)
 			textButton3.BackgroundTransparency = 1
 			textButton3.Text = ""
 			textButton3.ZIndex = 10
 			textButton3.BorderSizePixel = 0
-			textButton3.Active = true
-			textButton3.Selectable = true
+			textButton3.Visible = false
+			textButton3.Active = false
+			textButton3.Selectable = false
 			textButton3.Activated:Connect(function()
 				if flag11 then
 					return
@@ -12662,7 +12679,8 @@ tbl31 = {
 			scrollingFrame.ScrollBarThickness = 2
 			scrollingFrame.ScrollBarImageColor3 = glass.accent2
 			scrollingFrame.ScrollBarImageTransparency = 0.28
-			scrollingFrame.ElasticBehavior = Enum.ElasticBehavior.Always
+			scrollingFrame.ElasticBehavior = Enum.ElasticBehavior.Never
+			scrollingFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 			scrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 			scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 			local uiListLayout = Instance.new("UIListLayout", scrollingFrame)
@@ -14136,6 +14154,7 @@ tbl31 = {
 				uiListLayout.BackgroundTransparency = 0.4
 				uiListLayout.BorderSizePixel = 0
 				uiListLayout.ZIndex = 6
+				uiListLayout.Visible = false
 				mkCorner(uiListLayout, 14)
 				mkStroke(uiListLayout, glass.border, 1.2)
 				local aimbot, textLabel3 = tbl11.aimbot, Instance.new("TextLabel", uiListLayout)
@@ -14147,13 +14166,10 @@ tbl31 = {
 				textLabel3.TextSize = 12
 				textLabel3.TextXAlignment = Enum.TextXAlignment.Center
 				textLabel3.ZIndex = 7
+				textLabel3.Visible = false
 				do
 					local flag14 = false
-					local function fn81()
-						local aimbot2 = tbl11.aimbot
-						textLabel3.Text = aimbot2 and (getKeyDisplayName(aimbot2)) or "+"
-						textLabel3.TextColor3 = aimbot2 and glass.text or glass.muted
-					end
+					local function fn81() end
 					aimbot = Instance.new("TextButton", frame7)
 					aimbot.Size = uiListLayout.Size
 					aimbot.Position = uiListLayout.Position
@@ -14161,8 +14177,9 @@ tbl31 = {
 					aimbot.Text = ""
 					aimbot.ZIndex = 10
 					aimbot.BorderSizePixel = 0
-					aimbot.Active = true
-					aimbot.Selectable = true
+					aimbot.Visible = false
+					aimbot.Active = false
+					aimbot.Selectable = false
 					aimbot.Activated:Connect(function()
 						if flag14 then
 							return
@@ -14946,6 +14963,7 @@ tbl31 = {
 			frame6.BackgroundTransparency = 0.4
 			frame6.BorderSizePixel = 0
 			frame6.ZIndex = 6
+			frame6.Visible = false
 			mkCorner(frame6, 14)
 			mkStroke(frame6, glass.border, 1.2)
 			local textLabel3 = Instance.new("TextLabel", frame6)
@@ -14957,6 +14975,7 @@ tbl31 = {
 			textLabel3.TextSize = 12
 			textLabel3.TextXAlignment = Enum.TextXAlignment.Center
 			textLabel3.ZIndex = 7
+			textLabel3.Visible = false
 			do
 				local flag14, textButton3 = false, Instance.new("TextButton", v8)
 				textButton3.Size = frame6.Size
@@ -14965,8 +14984,9 @@ tbl31 = {
 				textButton3.Text = ""
 				textButton3.ZIndex = 10
 				textButton3.BorderSizePixel = 0
-				textButton3.Active = true
-				textButton3.Selectable = true
+				textButton3.Visible = false
+				textButton3.Active = false
+				textButton3.Selectable = false
 				textButton3.Activated:Connect(function()
 					if flag14 then
 						return
@@ -18766,17 +18786,16 @@ tbl31 = {
 							else position3
 					end
 					frame6.Position = UDim2.new(1, -60 - position3 % 2 * 59, 0.5, -26 + math.floor(position3 / 2) * 59)
-					frame6.BackgroundColor3 = Config._theme.active and Config._theme.active.panel
-						or (Color3.fromRGB(10, 12, 18))
+					frame6.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
 					frame6.BorderSizePixel = 0
 					frame6.Active = true
+					frame6:SetAttribute("VX7ModeBtn", true)
 					frame6.ZIndex = 15
 					uiCorner = Instance.new("UICorner", frame6)
 					uiCorner.Name = "VX7ButtonShape"
-					uiCorner.CornerRadius = Config.buttonShape == "Circle" and (UDim.new(1, 0)) or (UDim.new(0, 14))
+					uiCorner.CornerRadius = Config.buttonShape == "Circle" and (UDim.new(1, 0)) or (UDim.new(0.2, 0))
 					local uiStroke2 = Instance.new("UIStroke", frame6)
-					uiStroke2.Color = Config._theme.active and Config._theme.active.border
-						or (Color3.fromRGB(60, 60, 68))
+					uiStroke2.Color = Color3.fromRGB(8, 8, 10)
 					uiStroke2.Thickness = 1.4
 					Instance.new("UIScale", frame6).Scale = Config.floatScale or 0.7
 					table.insert(tbl6, frame6)
@@ -18785,9 +18804,8 @@ tbl31 = {
 					textLabel2.Position = UDim2.new(0, 4, 0, 4)
 					textLabel2.BackgroundTransparency = 1
 					textLabel2.Text = arg2:upper()
-					textLabel2.TextColor3 = Config._theme.active and Config._theme.active.text
-						or (Color3.fromRGB(220, 220, 220))
-					textLabel2.Font = Enum.Font.GothamMedium
+					textLabel2.TextColor3 = Color3.fromRGB(255, 255, 255)
+					textLabel2.Font = Enum.Font.GothamBold
 					textLabel2.TextScaled = false
 					textLabel2.TextSize = 9
 					textLabel2.TextWrapped = true
@@ -18823,15 +18841,15 @@ tbl31 = {
 						TweenService:Create(
 							frame6,
 							TweenInfo.new(0.15),
-							{ BackgroundColor3 = v45 and active.accent or active.panel }
+							{ BackgroundColor3 = v45 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10) }
 						):Play()
 						TweenService:Create(
 							textLabel2,
 							TweenInfo.new(0.15),
-							{ TextColor3 = v45 and active.contrast or active.text }
+							{ TextColor3 = v45 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 255, 255) }
 						):Play()
 						TweenService
-							:Create(uiStroke2, TweenInfo.new(0.15), { Color = v45 and active.accent2 or active.border })
+							:Create(uiStroke2, TweenInfo.new(0.15), { Color = v45 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10) })
 							:Play()
 					end
 					fn90()
@@ -21334,19 +21352,6 @@ tbl31 = {
 			makeGap(2)
 			buildSpeedSection()
 			makeGap(6)
-			makeSectionHeader("Speed Keys")
-			makeGap(2)
-			makeKeybindRow("Carry Speed Key", tbl11.speed, function(speed)
-				tbl11.speed = speed
-				Config._speedKeyCleared = speed == nil
-				fn34()
-			end, "speed")
-			makeGap(2)
-			makeKeybindRow("Lagger Carry Speed Key", tbl11.lagger, function(lagger)
-				tbl11.lagger = lagger
-				fn34()
-			end, "lagger")
-			makeGap(6)
 			buildAutoSection()
 			makeGap(6)
 			buildMovementFeatures()
@@ -21606,14 +21611,61 @@ tbl31 = {
 		buildPage("Config", function()
 			makeGap(2)
 			buildSettingsSection()
-			makeGap(8)
+			makeGap(10)
+			buildConfigSection()
+		end)
+		buildPage("Keys", function()
+			makeGap(2)
+			makeSectionHeader("Speed Keys")
+			makeGap(2)
+			makeKeybindRow("Carry Speed Key", tbl11.speed, function(speed)
+				tbl11.speed = speed
+				Config._speedKeyCleared = speed == nil
+				fn34()
+			end, "speed")
+			makeGap(2)
+			makeKeybindRow("Lagger Carry Speed Key", tbl11.lagger, function(lagger)
+				tbl11.lagger = lagger
+				fn34()
+			end, "lagger")
+			makeGap(6)
+			makeSectionHeader("Action Keys")
+			makeGap(2)
+			makeKeybindRow("Auto Play", tbl11.autoPlay, function(autoPlay)
+				tbl11.autoPlay = autoPlay
+				fn34()
+			end, "autoPlay")
+			makeGap(2)
+			makeKeybindRow("TP Down", tbl11.tpDown, function(tpDown)
+				tbl11.tpDown = tpDown
+				fn34()
+			end, "tpDown")
+			makeGap(2)
+			makeKeybindRow("Drop Brainrot", tbl11.drop, function(drop)
+				tbl11.drop = drop
+				fn34()
+			end, "drop")
+			makeGap(2)
+			makeKeybindRow("Bat Aimbot", tbl11.aimbot, function(aimbot)
+				tbl11.aimbot = aimbot
+				fn34()
+			end, "aimbot")
+			makeGap(2)
+			makeKeybindRow("Bat TP", tbl11.batTp, function(batTp)
+				tbl11.batTp = batTp
+				fn34()
+			end, "batTp")
+
+
+
+			makeGap(6)
 			makeSectionHeader("Interface Keys")
 			makeGap(2)
 			makeKeybindRow("Hide GUI", tbl11.guiHide, function(guiHide)
 				tbl11.guiHide = guiHide
+				fn34()
 			end, "guiHide")
-			makeGap(10)
-			buildConfigSection()
+			makeGap(4)
 		end);
 		(function()
 			for k, v45 in pairs(tbl47) do
@@ -29043,7 +29095,8 @@ Config._buildQuickGui = function()
 		arg = Config._savedQuickButtonPositions and Config._savedQuickButtonPositions[arg2.key]
 		frame.Position = arg and (UDim2.new(arg.sx or 0, arg.ox or 0, arg.sy or 0, arg.oy or 0))
 			or (UDim2.fromOffset(n22 + n24 * (n18 + n20), n23 + n25 * (n19 + n20)))
-		frame.BackgroundColor3 = Config._theme.active and Config._theme.active.panel or (Color3.fromRGB(10, 12, 18))
+		frame.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
+		frame:SetAttribute("VX7ModeBtn", true)
 		frame.BorderSizePixel = 0
 		frame.ZIndex = 100
 		frame.Visible = not (Config.hiddenQuickButtons or {})[arg2.key]
@@ -29053,15 +29106,15 @@ Config._buildQuickGui = function()
 		table.insert(tbl6, frame)
 		arg = Instance.new("UICorner", frame)
 		arg.Name = "VX7ButtonShape"
-		arg.CornerRadius = Config.buttonShape == "Circle" and (UDim.new(1, 0)) or (UDim.new(0, 14))
+		arg.CornerRadius = Config.buttonShape == "Circle" and (UDim.new(1, 0)) or (UDim.new(0.2, 0))
 		local uiStroke = Instance.new("UIStroke", frame)
-		uiStroke.Color = Config._theme.active and Config._theme.active.border or (Color3.fromRGB(48, 54, 70))
+		uiStroke.Color = Color3.fromRGB(8, 8, 10)
 		uiStroke.Thickness = 1.4
 		local textButton = Instance.new("TextButton", frame)
 		textButton.Size = UDim2.fromScale(1, 1)
 		textButton.BackgroundTransparency = 1
 		textButton.Text = arg2.text
-		textButton.TextColor3 = Config._theme.active and Config._theme.active.text or (Color3.fromRGB(220, 220, 220))
+		textButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		textButton.TextWrapped = true
 		textButton.TextScaled = false
 		textButton.Font = Enum.Font.GothamBold
@@ -29085,9 +29138,9 @@ Config._buildQuickGui = function()
 				return
 			end
 			v23, v24 = arg3, active
-			frame.BackgroundColor3 = arg3 and active.accent or active.panel
-			textButton.TextColor3 = arg3 and active.contrast or active.text
-			uiStroke.Color = arg3 and active.accent2 or active.border
+			frame.BackgroundColor3 = arg3 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10)
+			textButton.TextColor3 = arg3 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 255, 255)
+			uiStroke.Color = arg3 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10)
 		end
 		local flag5, flag6, position, position2 = false, false
 		local n26, n27, v25 = 0, 0
