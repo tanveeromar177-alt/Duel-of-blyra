@@ -932,7 +932,7 @@ local tbl13, tbl14, n7, n8, n9, n10, tbl15 =
 		cardBorder = Color3.fromRGB(140, 80, 220),
 		rowBg = Color3.fromRGB(28, 18, 42),
 		rowBorder = Color3.fromRGB(100, 60, 160),
-		accent = Color3.fromRGB(190, 120, 255),
+		accent = Color3.fromRGB(255, 50, 60),
 		accentDim = Color3.fromRGB(140, 80, 200),
 		accentBr = Color3.fromRGB(220, 180, 255),
 		txtMain = Color3.fromRGB(245, 235, 255),
@@ -940,7 +940,7 @@ local tbl13, tbl14, n7, n8, n9, n10, tbl15 =
 		txtBright = Color3.fromRGB(255, 250, 255),
 		inputBg = Color3.fromRGB(24, 16, 38),
 		inputBorder = Color3.fromRGB(140, 80, 220),
-		inputFocus = Color3.fromRGB(190, 120, 255),
+		inputFocus = Color3.fromRGB(255, 50, 60),
 		inputTxt = Color3.fromRGB(245, 235, 255),
 		pillOff = Color3.fromRGB(50, 30, 80),
 		pillOn = Color3.fromRGB(160, 90, 255),
@@ -963,10 +963,10 @@ local tbl13, tbl14, n7, n8, n9, n10, tbl15 =
 		stackBrd = Color3.fromRGB(160, 90, 255),
 		stackTxt = Color3.fromRGB(255, 250, 255),
 		stackActBg = Color3.fromRGB(50, 30, 80),
-		stackActBrd = Color3.fromRGB(190, 120, 255),
+		stackActBrd = Color3.fromRGB(255, 50, 60),
 		stackActTxt = Color3.fromRGB(255, 255, 255),
 		stackDot = Color3.fromRGB(80, 50, 120),
-		stackDotOn = Color3.fromRGB(190, 120, 255),
+		stackDotOn = Color3.fromRGB(255, 50, 60),
 		infoBg = Color3.fromRGB(24, 16, 38),
 		infoBrd = Color3.fromRGB(120, 70, 190),
 		infoTxt = Color3.fromRGB(190, 170, 220),
@@ -977,18 +977,18 @@ local tbl13, tbl14, n7, n8, n9, n10, tbl15 =
 		presetLoad = Color3.fromRGB(70, 40, 110),
 		presetDel = Color3.fromRGB(90, 50, 130),
 		delBrd = Color3.fromRGB(140, 80, 220),
-		lockOn = Color3.fromRGB(190, 120, 255),
+		lockOn = Color3.fromRGB(255, 50, 60),
 		divider = Color3.fromRGB(90, 50, 140),
 		sectionTxt = Color3.fromRGB(210, 190, 240),
 		sectionDiv = Color3.fromRGB(90, 50, 140),
 		tabIdle = Color3.fromRGB(200, 180, 230),
 		tabActive = Color3.fromRGB(255, 250, 255),
 		tabActiveBg = Color3.fromRGB(40, 25, 65),
-		tabUnderline = Color3.fromRGB(190, 120, 255),
+		tabUnderline = Color3.fromRGB(255, 50, 60),
 		tabBarDiv = Color3.fromRGB(80, 45, 120),
 		topBg = Color3.fromRGB(24, 16, 38),
 		topTitle = Color3.fromRGB(245, 235, 255),
-		topSub = Color3.fromRGB(190, 120, 255),
+		topSub = Color3.fromRGB(255, 50, 60),
 		topDivider = Color3.fromRGB(90, 50, 140),
 		green = Color3.fromRGB(180, 140, 255),
 		red = Color3.fromRGB(160, 80, 200),
@@ -3169,11 +3169,11 @@ Config._buildHeadDisplay = function(discord)
 		textLabel2.Position = position
 		textLabel2.BackgroundTransparency = 1
 		textLabel2.Text = text
-		textLabel2.TextColor3 = Color3.fromRGB(190, 120, 255)
+		textLabel2.TextColor3 = Color3.fromRGB(255, 50, 60)
 		textLabel2.Font = Enum.Font.GothamBlack
 		textLabel2.TextSize = textSize
 		textLabel2.TextStrokeTransparency = 0.15
-		textLabel2.TextStrokeColor3 = Color3.fromRGB(40, 20, 70)
+		textLabel2.TextStrokeColor3 = Color3.fromRGB(70, 10, 16)
 		textLabel2.TextXAlignment = textXAlignment
 		textLabel2.ZIndex = 3
 		fn30(textLabel2)
@@ -3187,11 +3187,11 @@ Config._buildHeadDisplay = function(discord)
 	textLabel2.Position = UDim2.new(0, 0, 0, 30)
 	textLabel2.BackgroundTransparency = 1
 	textLabel2.Text = string.format("%.1f", tonumber(Config.normalSpeed) or 0)
-	textLabel2.TextColor3 = Color3.fromRGB(190, 120, 255)
+	textLabel2.TextColor3 = Color3.fromRGB(255, 50, 60)
 	textLabel2.Font = Enum.Font.GothamBold
 	textLabel2.TextSize = 24
 	textLabel2.TextStrokeTransparency = 0.15
-	textLabel2.TextStrokeColor3 = Color3.fromRGB(40, 20, 70)
+	textLabel2.TextStrokeColor3 = Color3.fromRGB(70, 10, 16)
 	textLabel2.TextXAlignment = Enum.TextXAlignment.Center
 	textLabel2.ZIndex = 3
 	fn30(textLabel2)
@@ -3241,7 +3241,7 @@ Config._buildHeadDisplay = function(discord)
 	end)
 	local function forceHeadPurple()
 		local purple = Color3.fromRGB(255, 50, 60)
-		local stroke = Color3.fromRGB(40, 20, 70)
+		local stroke = Color3.fromRGB(70, 10, 16)
 		if tbl27.discord and tbl27.discord.Parent then
 			tbl27.discord.TextColor3 = purple
 			tbl27.discord.TextStrokeColor3 = stroke
@@ -3504,6 +3504,25 @@ Config._theme = {
 		VX7_HeadDisplay = true,
 	},
 }
+do
+	-- Black rows (Ambitious style). rowPanel/rowHover are only the FINAL colours; the original
+	-- panel/hover stay untouched so the theme's nearest-colour matching behaves as before.
+	local rowBlack, rowHover = Color3.fromRGB(8, 8, 10), Color3.fromRGB(30, 30, 36)
+	local function setRows(p)
+		if type(p) ~= "table" or typeof(p.bg) ~= "Color3" then
+			return
+		end
+		if (p.bg.R + p.bg.G + p.bg.B) / 3 > 0.55 then
+			p.rowPanel, p.rowHover = p.panel, p.hover
+		else
+			p.rowPanel, p.rowHover = rowBlack, rowHover
+		end
+	end
+	for _, p in ipairs(Config._theme.palettes) do
+		setRows(p)
+	end
+	setRows(Config._theme.base)
+end
 Config._fontStyleOrder = {
 	"VX7 Original",
 	"Merriweather",
@@ -4059,7 +4078,6 @@ end
 local tbl34 = {
 	"speed",
 	"guiHide",
-	"autoPlay",
 	"autoLeft",
 	"autoRight",
 	"lagger",
@@ -4217,19 +4235,10 @@ local function fn38(arg)
 			end
 			fn34()
 		end, function() end
-	elseif arg == "autoPlay" then
-		return function()
-			if Config._isAutoplayActive and (Config._isAutoplayActive()) then
-				pcall(stopAutoPlay)
-			else
-				pcall(startAutoPlay)
-			end
-			fn34()
-		end, function() end
 	elseif arg == "autoLeft" then
 		return function()
 			if Config.autoLeftEnabled then
-				pcall(stopAutoPlay)
+				pcall(stopAutoLeft)
 			else
 				pcall(startAutoLeft)
 			end
@@ -4238,7 +4247,7 @@ local function fn38(arg)
 	elseif arg == "autoRight" then
 		return function()
 			if Config.autoRightEnabled then
-				pcall(stopAutoPlay)
+				pcall(stopAutoRight)
 			else
 				pcall(startAutoRight)
 			end
@@ -4485,12 +4494,8 @@ local function fn39()
 	if v23.uiLocked ~= nil then
 		Config.uiLocked = v23.uiLocked
 	end
-	if v23.autoLeftEnabled ~= nil then
-		Config.autoLeftEnabled = v23.autoLeftEnabled
-	end
-	if v23.autoRightEnabled ~= nil then
-		Config.autoRightEnabled = v23.autoRightEnabled
-	end
+	Config.autoLeftEnabled = false
+	Config.autoRightEnabled = false
 	if v23.dropEnabled ~= nil then
 		Config.dropEnabled = v23.dropEnabled
 	end
@@ -4533,7 +4538,7 @@ local function fn39()
 			tbl11[arg2] = arg3
 		end
 	end
-	antiRagdollEnabled("autoPlayKey", "autoPlay", nil)
+	tbl11.autoPlay = nil
 	antiRagdollEnabled("autoLeftKey", "autoLeft", nil)
 	antiRagdollEnabled("autoRightKey", "autoRight", nil)
 	antiRagdollEnabled("guiHideKey", "guiHide", Enum.KeyCode.LeftControl)
@@ -9379,10 +9384,10 @@ tbl31 = {
 			bg = Color3.fromRGB(18, 12, 28),
 			top = Color3.fromRGB(28, 18, 42),
 			side = Color3.fromRGB(24, 16, 38),
-			panel = Color3.fromRGB(38, 24, 58),
-			panelHover = Color3.fromRGB(72, 40, 110),
+			panel = Color3.fromRGB(8, 8, 10),
+			panelHover = Color3.fromRGB(30, 30, 36),
 			border = Color3.fromRGB(140, 80, 220),
-			accent = Color3.fromRGB(190, 120, 255),
+			accent = Color3.fromRGB(255, 50, 60),
 			accent2 = Color3.fromRGB(160, 90, 255),
 			text = Color3.fromRGB(245, 235, 255),
 			muted = Color3.fromRGB(170, 150, 200),
@@ -9393,6 +9398,16 @@ tbl31 = {
 			return n18 * n18 + n19 * n19 + n20 * n20
 		end
 		function Config._theme.nearest(arg, arg2, arg3)
+			if arg2.rowPanel then
+				for _, e in ipairs(arg3) do
+					if e[2] == "panel" and Config._theme.distance(arg, arg2.rowPanel) < 5e-6 then
+						return e[1]
+					end
+					if e[2] == "hover" and Config._theme.distance(arg, arg2.rowHover) < 5e-6 then
+						return e[1]
+					end
+				end
+			end
 			local huge, v42 = math.huge, arg3[1][1]
 			for i, v43 in ipairs(arg3) do
 				i = Config._theme.distance(arg, arg2[v43[2]])
@@ -9407,7 +9422,7 @@ tbl31 = {
 			arg = if arg2 == 1
 				then {
 					Color3.fromRGB(230, 200, 255),
-					Color3.fromRGB(190, 120, 255),
+					Color3.fromRGB(255, 50, 60),
 					Color3.fromRGB(140, 70, 240),
 					Color3.fromRGB(210, 160, 255),
 				}
@@ -9552,7 +9567,7 @@ tbl31 = {
 				end
 			end
 			local flag6, flag7, statsBarRoot =
-				arg2 == Config._theme.palettes[1] and tbl27.sg ~= nil and (arg:IsDescendantOf(tbl27.sg)),
+				false,
 				Config._theme.index == 9 and tbl27.sg ~= nil and (arg:IsDescendantOf(tbl27.sg)),
 				Config._statsBarRoot
 			if statsBarRoot and statsBarRoot.Parent and (arg == statsBarRoot or (arg:IsDescendantOf(statsBarRoot))) then
@@ -9668,7 +9683,7 @@ tbl31 = {
 								{ "accent", "accent" },
 								{ "accent2", "accent2" },
 							}))
-						fn70(arg, { BackgroundColor3 = arg2[statsBarRoot] or arg2.panel })
+						fn70(arg, { BackgroundColor3 = (statsBarRoot == "panel" and arg2.rowPanel) or (statsBarRoot == "hover" and arg2.rowHover) or arg2[statsBarRoot] or arg2.panel })
 					end
 				end
 				if arg:IsA("TextLabel") or (arg:IsA("TextButton")) or (arg:IsA("TextBox")) then
@@ -9690,9 +9705,9 @@ tbl31 = {
 										{ { "text", "text" }, { "muted", "muted" }, { "contrast", "contrast" } }
 									))
 						if v42 == "brand" then
-							fn70(arg, { TextColor3 = Color3.fromRGB(190, 120, 255) })
+							fn70(arg, { TextColor3 = Color3.fromRGB(255, 50, 60) })
 							if arg.TextStrokeTransparency < 1 then
-								fn70(arg, { TextStrokeColor3 = Color3.fromRGB(40, 20, 70), TextStrokeTransparency = 0.15 })
+								fn70(arg, { TextStrokeColor3 = Color3.fromRGB(70, 10, 16), TextStrokeTransparency = 0.15 })
 							end
 						elseif flag7 then
 							fn70(arg, { TextColor3 = Color3.fromRGB(255, 244, 198) })
@@ -9794,8 +9809,8 @@ tbl31 = {
 			glass.bg = base.bg
 			glass.top = base.top
 			glass.side = base.side
-			glass.panel = base.panel
-			glass.panelHover = base.hover
+			glass.panel = base.rowPanel or base.panel
+			glass.panelHover = base.rowHover or base.hover
 			glass.border = base.border
 			glass.accent = base.accent
 			glass.accent2 = base.accent2
@@ -9805,7 +9820,7 @@ tbl31 = {
 			tbl14.bg = base.bg
 			tbl14.card = base.panel
 			tbl14.cardBorder = base.border
-			tbl14.rowBg = base.panel
+			tbl14.rowBg = base.rowPanel or base.panel
 			tbl14.rowBorder = base.border
 			tbl14.accent = base.accent
 			tbl14.accentDim = base.accent2
@@ -10307,9 +10322,9 @@ tbl31 = {
 		uiGradient2.Position = UDim2.new(0, 16, 0, 0)
 		uiGradient2.BackgroundTransparency = 1
 		uiGradient2.Text = "Sawyer Hub"
-		uiGradient2.TextColor3 = Color3.fromRGB(255, 255, 255)
+		uiGradient2.TextColor3 = Color3.fromRGB(255, 50, 60)
 		uiGradient2.Font = Enum.Font.GothamBlack
-		uiGradient2.TextSize = 24
+		uiGradient2.TextSize = 30
 		uiGradient2.TextXAlignment = Enum.TextXAlignment.Center
 		uiGradient2.TextYAlignment = Enum.TextYAlignment.Center
 		uiGradient2.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -10387,7 +10402,7 @@ tbl31 = {
 		minimizedCircle.Size = UDim2.fromOffset(22, 22)
 		minimizedCircle.AnchorPoint = Vector2.new(0, 0.5)
 		minimizedCircle.Position = UDim2.new(0, 14, 0.5, 0)
-		minimizedCircle.BackgroundColor3 = Color3.fromRGB(76, 29, 140)
+		minimizedCircle.BackgroundColor3 = Color3.fromRGB(255, 50, 60)
 		minimizedCircle.BackgroundTransparency = 0
 		minimizedCircle.BorderSizePixel = 0
 		minimizedCircle.ZIndex = 22
@@ -11413,7 +11428,7 @@ tbl31 = {
 		end
 		function makeSpeedRow(text, text2, arg, arg2, arg3, arg4, arg5, arg6, arg7)
 			local frame6 = Instance.new("Frame", v43)
-			frame6.Size = UDim2.new(1, 0, 0, 62)
+			frame6.Size = UDim2.new(1, 0, 0, 44)
 			frame6.BorderSizePixel = 0
 			frame6.LayoutOrder = LO()
 			frame6.BackgroundColor3 = glass.panel
@@ -11439,7 +11454,7 @@ tbl31 = {
 			mkCorner(frame8, 4)
 			arg3 = Instance.new("TextLabel", frame6)
 			arg3.Size = UDim2.new(1, -220, 0, 20)
-			arg3.Position = UDim2.new(0, 14, 0, 21)
+			arg3.Position = UDim2.new(0, 14, 0, 12)
 			arg3.BackgroundTransparency = 1
 			arg3.Text = text
 			arg3.TextColor3 = glass.text
@@ -11461,6 +11476,7 @@ tbl31 = {
 			arg3.Position = UDim2.new(1, -108, 0, 5)
 			arg3.BackgroundTransparency = 1
 			arg3.Text = "NORMAL"
+			arg3.Visible = false
 			arg3.TextColor3 = glass.muted
 			arg3.Font = Enum.Font.GothamBold
 			arg3.TextSize = 7
@@ -11470,6 +11486,7 @@ tbl31 = {
 			text.Position = UDim2.new(1, -55, 0, 5)
 			text.BackgroundTransparency = 1
 			text.Text = "STEAL"
+			text.Visible = false
 			text.TextColor3 = glass.muted
 			text.Font = Enum.Font.GothamBold
 			text.TextSize = 7
@@ -11477,7 +11494,7 @@ tbl31 = {
 			text2 = Instance.new("Frame", frame6)
 			text2.Name = "SpeedBoxWrap"
 			text2.Size = UDim2.new(0, 48, 0, 28)
-			text2.Position = UDim2.new(1, -108, 0, 21)
+			text2.Position = UDim2.new(1, -55, 0, 8)
 			text2.BackgroundColor3 = glass.panel
 			text2.BackgroundTransparency = 0.12
 			text2.BorderSizePixel = 0
@@ -11492,6 +11509,7 @@ tbl31 = {
 			arg3.BackgroundTransparency = 0.12
 			arg3.BorderSizePixel = 0
 			arg3.ZIndex = 6
+			arg3.Visible = false
 			mkCorner(arg3, 8)
 			mkStroke(arg3, glass.border, 0.6)
 			local textBox2 = Instance.new("TextBox", text2)
@@ -11753,6 +11771,66 @@ tbl31 = {
 				end
 			end)
 			return textBox3, textBox2, frame6, frame7, frame8, v44, fn77
+		end
+		function makeSingleSpeedRow(label, getValue, setValue)
+			local row = Instance.new("Frame", v43)
+			row.Size = UDim2.new(1, 0, 0, 44)
+			row.BorderSizePixel = 0
+			row.LayoutOrder = LO()
+			row.BackgroundColor3 = glass.panel
+			row.BackgroundTransparency = 0.32
+			mkCorner(row, 11)
+			mkStroke(row, glass.border, 0.7)
+			local title = Instance.new("TextLabel", row)
+			title.Size = UDim2.new(1, -120, 0, 20)
+			title.Position = UDim2.new(0, 14, 0, 12)
+			title.BackgroundTransparency = 1
+			title.Text = label
+			title.TextColor3 = glass.text
+			title.Font = Enum.Font.GothamBold
+			title.TextSize = 12
+			title.TextXAlignment = Enum.TextXAlignment.Left
+			local wrap = Instance.new("Frame", row)
+			wrap.Name = "SpeedBoxWrap"
+			wrap.Size = UDim2.new(0, 48, 0, 28)
+			wrap.Position = UDim2.new(1, -55, 0, 8)
+			wrap.BackgroundColor3 = glass.panel
+			wrap.BackgroundTransparency = 0.12
+			wrap.BorderSizePixel = 0
+			wrap.ZIndex = 6
+			mkCorner(wrap, 8)
+			mkStroke(wrap, glass.border, 0.6)
+			local box = Instance.new("TextBox", wrap)
+			box.Size = UDim2.new(1, -6, 1, 0)
+			box.Position = UDim2.new(0, 3, 0, 0)
+			box.BackgroundTransparency = 1
+			box.Text = tostring(getValue())
+			box.TextColor3 = glass.text
+			box.Font = Enum.Font.GothamBlack
+			box.TextSize = 12
+			box.TextXAlignment = Enum.TextXAlignment.Center
+			box.ClearTextOnFocus = false
+			box.ZIndex = 8
+			box.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					task.defer(function()
+						if box and box.Parent then
+							box:CaptureFocus()
+						end
+					end)
+				end
+			end)
+			box.FocusLost:Connect(function()
+				local num = tonumber(box.Text)
+				if num and num > 0 and num <= 500 then
+					setValue(num)
+					box.Text = tostring(num)
+				else
+					box.Text = tostring(getValue())
+				end
+				fn34()
+			end)
+			return box
 		end
 		local flag10, connection11, connection12 = false
 		Config._activePromptKeys = {}
@@ -12656,17 +12734,181 @@ tbl31 = {
 		startAutoPlay = fn80
 		stopAutoPlay = fn79
 		fn48 = function()
-			fn80("left")
+			if startAutoLeft then
+				startAutoLeft()
+			end
 		end
 		fn49 = function()
-			fn79()
+			if stopAutoLeft then
+				stopAutoLeft()
+			end
 		end
 		fn50 = function()
-			fn80("right")
+			if startAutoRight then
+				startAutoRight()
+			end
 		end
 		fn51 = function()
-			fn79()
+			if stopAutoRight then
+				stopAutoRight()
+			end
 		end
+		startAutoPlay = function() end
+		stopAutoPlay = function()
+			if stopAutoLeft then
+				stopAutoLeft()
+			end
+			if stopAutoRight then
+				stopAutoRight()
+			end
+		end
+		;(function()
+			-- Auto Left / Auto Right: port of startAutoLeft/startAutoRight from bless_vs_paid.txt.
+			-- Coordinates are copied from Bless's AP table (world-space studs).
+			local AP = {
+				L1 = Vector3.new(-476.48, -6.28, 92.73),
+				L2 = Vector3.new(-483.12, -4.95, 94.80),
+				L_FACE = Vector3.new(-482.25, -4.96, 92.09),
+				R1 = Vector3.new(-476.16, -6.52, 25.62),
+				R2 = Vector3.new(-483.06, -5.03, 25.48),
+				R_FACE = Vector3.new(-482.06, -6.93, 35.47),
+			}
+			local sides = {
+				left = { key = "autoLeft", flag = "autoLeftEnabled", p1 = AP.L1, p2 = AP.L2, face = AP.L_FACE, phase = 1, active = false },
+				right = { key = "autoRight", flag = "autoRightEnabled", p1 = AP.R1, p2 = AP.R2, face = AP.R_FACE, phase = 1, active = false },
+			}
+			-- Uses the speed from Sawyer's own speed system (normal / carry / lagger / steal).
+			local function resolveSpeed()
+				local fnSpeed = Config._unifiedResolveSpeed
+				local ok, v = false, nil
+				if fnSpeed then
+					ok, v = pcall(fnSpeed)
+				end
+				v = tonumber(ok and v or nil) or tonumber(Config.normalSpeed)
+				return v or 60
+			end
+			Config._autoLRSpeed = resolveSpeed
+			function Config._isAutoplayActive()
+				return sides.left.active or sides.right.active
+			end
+			local function setUi(side, on)
+				Config[side.flag] = on
+				local ref = stackBtnRefs and stackBtnRefs[side.key]
+				if ref and ref.setOn then
+					pcall(ref.setOn, on)
+				end
+			end
+			local function halt(root, hum)
+				if hum then
+					pcall(function()
+						hum:Move(Vector3.zero, false)
+					end)
+				end
+				if root and root.Parent then
+					pcall(function()
+						local v = root.AssemblyLinearVelocity
+						root.AssemblyLinearVelocity = Vector3.new(0, v.Y, 0)
+					end)
+				end
+			end
+			local function charParts()
+				local char = localPlayer.Character
+				return char,
+					char and char:FindFirstChild("HumanoidRootPart"),
+					char and char:FindFirstChildOfClass("Humanoid")
+			end
+			local function stopSide(side)
+				local was = side.active
+				side.active = false
+				side.phase = 1
+				side.char = nil
+				if side.conn then
+					side.conn:Disconnect()
+					side.conn = nil
+				end
+				if was then
+					local _, root, hum = charParts()
+					halt(root, hum)
+				end
+				setUi(side, false)
+			end
+			local function moveToward(root, hum, target, speed)
+				local pos = root.Position
+				local delta = Vector3.new(target.X - pos.X, 0, target.Z - pos.Z)
+				if delta.Magnitude <= 1 then
+					return true
+				end
+				local dir = delta.Unit
+				pcall(function()
+					hum:Move(dir, false)
+				end)
+				local y = root.AssemblyLinearVelocity.Y
+				root.AssemblyLinearVelocity = Vector3.new(dir.X * speed, y, dir.Z * speed)
+				return false
+			end
+			local function finishSide(side, root, hum)
+				halt(root, hum)
+				if root and root.Parent then
+					local facePos = Vector3.new(side.face.X, root.Position.Y, side.face.Z)
+					if (facePos - root.Position).Magnitude > 0.01 then
+						root.CFrame = CFrame.new(root.Position, facePos)
+					end
+				end
+				stopSide(side)
+			end
+			local function startSide(side, other)
+				stopSide(other)
+				stopSide(side)
+				-- Bless: disableAllAimbots(). Sawyer equivalents:
+				if Config.batAimbotToggled then
+					pcall(v2)
+				end
+				if Config.batLaggerToggled then
+					pcall(v4)
+					Config.batLaggerToggled = false
+				end
+				side.active = true
+				side.phase = 1
+				side.char = nil
+				setUi(side, true)
+				side.conn = RunService.Heartbeat:Connect(function()
+					if not side.active then
+						return
+					end
+					if Config._instaResetInProgress or Config.dropEnabled then
+						return
+					end
+					local char, root, hum = charParts()
+					if not root or not hum or hum.Health <= 0 then
+						return
+					end
+					if side.char ~= char then
+						side.char = char
+						side.phase = 1
+					end
+					local spd = resolveSpeed()
+					if side.phase == 1 then
+						if moveToward(root, hum, side.p1, spd) then
+							side.phase = 2
+						end
+					elseif moveToward(root, hum, side.p2, spd) then
+						finishSide(side, root, hum)
+					end
+				end)
+			end
+			function startAutoLeft()
+				startSide(sides.left, sides.right)
+			end
+			function stopAutoLeft()
+				stopSide(sides.left)
+			end
+			function startAutoRight()
+				startSide(sides.right, sides.left)
+			end
+			function stopAutoRight()
+				stopSide(sides.right)
+			end
+		end)()
 		function buildPage(name, arg)
 			local scrollingFrame = Instance.new("ScrollingFrame", frame5)
 			scrollingFrame.Name = name
@@ -12778,7 +13020,12 @@ tbl31 = {
 			)
 			tbl39.Normal = { row = v47, dot = v49, cstroke = v50, refreshKb = v51 }
 			normalBox = v46
-			normalStealBox = v45
+			makeGap(2)
+			normalStealBox = makeSingleSpeedRow("Carry Speed", function()
+				return Config.normalStealSpeed
+			end, function(num)
+				Config.normalStealSpeed = num
+			end)
 			makeGap(2)
 			frame6, v45, v51, v47, v49, v46, v50 = makeSpeedRow(
 				"Lagger Speed",
@@ -12805,90 +13052,18 @@ tbl31 = {
 			)
 			tbl39.Lagger = { row = v51, dot = v49, cstroke = v46, refreshKb = v50 }
 			laggerBox = v45
-			laggerStealBox = frame6
+			makeGap(2)
+			laggerStealBox = makeSingleSpeedRow("Lagger Carry", function()
+				return Config.laggerStealSpeed
+			end, function(num)
+				Config.laggerStealSpeed = num
+			end)
 
 		end
 		function buildAutoSection()
 			makeSectionHeader("Auto")
 			makeGap(1)
-			local Frame = fn9("Frame", v43, {
-				Size = UDim2.new(1, 0, 0, 0),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				BackgroundTransparency = 1,
-				BorderSizePixel = 0,
-				LayoutOrder = LO(),
-			})
-			fn9("UIListLayout", Frame, { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2) })
-			do
-				local Frame2 = fn9("Frame", Frame, {
-					Size = UDim2.new(1, 0, 0, 40),
-					BorderSizePixel = 0,
-					LayoutOrder = LO(),
-					BackgroundColor3 = glass.panel,
-					BackgroundTransparency = 0.4,
-				})
-				mkCorner(Frame2, 10)
-				mkAnimStroke(Frame2, 1)
-				local TextLabel, frame6 =
-					fn9("TextLabel", Frame2, {
-						Size = UDim2.new(1, -54, 1, 0),
-						Position = UDim2.new(0, 14, 0, 0),
-						BackgroundTransparency = 1,
-						Text = "Auto Play",
-						TextColor3 = Color3.fromRGB(200, 200, 200),
-						Font = Enum.Font.GothamBold,
-						TextSize = 12,
-						TextXAlignment = Enum.TextXAlignment.Left,
-					}), Instance.new("Frame", Frame2)
-				frame6.Size = UDim2.new(0, 28, 0, 28)
-				frame6.Position = UDim2.new(1, -40, 0.5, -14)
-				frame6.BackgroundColor3 = glass.panel
-				frame6.BackgroundTransparency = 0.4
-				frame6.BorderSizePixel = 0
-				frame6.ZIndex = 6
-				mkCorner(frame6, 14)
-				mkStroke(frame6, glass.border, 1.2)
-				local textLabel2 = Instance.new("TextLabel", frame6)
-				textLabel2.Size = UDim2.new(1, 0, 1, 0)
-				textLabel2.BackgroundTransparency = 1
-				textLabel2.Text = tbl11.autoPlay and (getKeyDisplayName(tbl11.autoPlay)) or "+"
-				textLabel2.TextColor3 = tbl11.autoPlay and glass.text or glass.muted
-				textLabel2.Font = Enum.Font.GothamBlack
-				textLabel2.TextSize = 12
-				textLabel2.TextXAlignment = Enum.TextXAlignment.Center
-				textLabel2.ZIndex = 7
-				Config._bindSimpleKey(Frame2, frame6, textLabel2, "autoPlay")
-				local function fn81()
-					if Config._isAutoplayActive and (Config._isAutoplayActive()) then
-						Config.Core.Call("AutoPlay", "Stop")
-					else
-						Config.Core.Call("AutoPlay", "Start")
-					end
-					fn34()
-				end
-				function setAutoPlay(arg)
-					TextLabel.TextColor3 = arg and glass.text or glass.muted
-					TweenService
-						:Create(
-							Frame2,
-							TweenInfo.new(0.15),
-							{ BackgroundColor3 = arg and glass.panelHover or glass.panel }
-						)
-						:Play()
-				end
-				setAutoPlay(Config._isAutoplayActive and (Config._isAutoplayActive()) or false)
-				textLabel2 = Instance.new("TextButton", Frame2)
-				textLabel2.Size = UDim2.new(1, -54, 1, 0)
-				textLabel2.Position = UDim2.new(0, 14, 0, 0)
-				textLabel2.BackgroundTransparency = 1
-				textLabel2.Text = ""
-				textLabel2.ZIndex = 5
-				textLabel2.BorderSizePixel = 0
-				textLabel2.Activated:Connect(fn81)
-			end
-
-			mkAccordion(Frame)
-			makeGap(1)
+			local Frame
 			Frame = fn9("Frame", v43, {
 				Size = UDim2.new(1, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
@@ -16988,14 +17163,18 @@ tbl31 = {
 							return false
 						end,
 					}, { state = "batAimbotToggled", label = "Bat Aimbot", key = "aimbot" }, {
-						state = "autoPlay",
-						label = "Auto Play",
-						key = "autoPlay",
+						state = "autoLeftEnabled",
+						label = "Auto Left",
+						key = "autoLeft",
 						get = function()
-							if Config._isAutoplayActive and (Config._isAutoplayActive()) then
-								return true
-							end
-							return Config.autoLeftEnabled == true or Config.autoRightEnabled == true
+							return Config.autoLeftEnabled == true
+						end,
+					}, {
+						state = "autoRightEnabled",
+						label = "Auto Right",
+						key = "autoRight",
+						get = function()
+							return Config.autoRightEnabled == true
 						end,
 					}, { state = "batTpEnabled", label = "Bat Tp", key = "batTp" }, { state = "batLaggerToggled", label = "Bat Lagger", key = "batLagger" }, { state = "dropEnabled", label = "Drop Brainrot", key = "drop" }, { state = "smartBatTpEnabled", label = "Smart BatTp", key = "smartBatTp" }, { state = "silentBatAim", label = "Silent Bat Aim", key = "silentBatAim" } }
 				local function fn83(arg)
@@ -21631,10 +21810,15 @@ tbl31 = {
 			makeGap(6)
 			makeSectionHeader("Action Keys")
 			makeGap(2)
-			makeKeybindRow("Auto Play", tbl11.autoPlay, function(autoPlay)
-				tbl11.autoPlay = autoPlay
+			makeKeybindRow("Auto Left", tbl11.autoLeft, function(autoLeft)
+				tbl11.autoLeft = autoLeft
 				fn34()
-			end, "autoPlay")
+			end, "autoLeft")
+			makeGap(2)
+			makeKeybindRow("Auto Right", tbl11.autoRight, function(autoRight)
+				tbl11.autoRight = autoRight
+				fn34()
+			end, "autoRight")
 			makeGap(2)
 			makeKeybindRow("TP Down", tbl11.tpDown, function(tpDown)
 				tbl11.tpDown = tpDown
@@ -26197,7 +26381,7 @@ tbl31 = {
 							Config.speedMethod ~= "V2" and Config.stealToggled
 								or Config.speedMethod == "V2" and Config.v2UseCarry
 						deltaTime = if Config._isAutoplayActive and (Config._isAutoplayActive())
-							then (fn77())
+							then (Config._autoLRSpeed and Config._autoLRSpeed() or Config.normalSpeed)
 							else if stealToggled
 								then (vxGetStealSpeed())
 								else if Config.autoCarrySpeedEnabled == true
@@ -27758,18 +27942,9 @@ tbl31 = {
 						fn34()
 						return
 					end
-					if fn87(input, tbl11.autoPlay) then
-						if Config._isAutoplayActive and (Config._isAutoplayActive()) then
-							stopAutoPlay()
-						else
-							startAutoPlay()
-						end
-						fn34()
-						return
-					end
 					if fn87(input, tbl11.autoLeft) then
 						if Config.autoLeftEnabled then
-							stopAutoPlay()
+							stopAutoLeft()
 						else
 							fn48()
 						end
@@ -27778,7 +27953,7 @@ tbl31 = {
 					end
 					if fn87(input, tbl11.autoRight) then
 						if Config.autoRightEnabled then
-							stopAutoPlay()
+							stopAutoRight()
 						else
 							fn50()
 						end
@@ -28857,7 +29032,8 @@ Config._buildQuickGui = function()
 	Config._quickButtonFrames = {}
 	local tbl37 = {
 		{ key = "drop", text = "DROP\nBRAINROT" },
-		{ key = "autoPlay", text = "AUTO\nPLAY" },
+		{ key = "autoLeft", text = "AUTO\nLEFT" },
+		{ key = "autoRight", text = "AUTO\nRIGHT" },
 		{ key = "tpDown", text = "TP\nDOWN" },
 		{ key = "carry", text = "CARRY\nSPEED" },
 		{ key = "lagger", text = "LAGGER\nCARRY" },
@@ -28876,7 +29052,7 @@ Config._buildQuickGui = function()
 		) / 2
 	) + n21
 	local function fn42(arg)
-		if arg ~= "autoPlay" and (Config.autoLeftEnabled or Config.autoRightEnabled) then
+		if arg ~= "autoLeft" and arg ~= "autoRight" and (Config.autoLeftEnabled or Config.autoRightEnabled) then
 			pcall(stopAutoPlay)
 		end
 		if arg ~= "aimbot" and Config.batAimbotToggled then
@@ -28887,14 +29063,17 @@ Config._buildQuickGui = function()
 			Config.batLaggerToggled = false
 		end
 		for k, v23 in pairs(tbl36) do
-			if k == "autoPlay" or k == "aimbot" or k == "batLagger" then
+			if k == "autoLeft" or k == "autoRight" or k == "aimbot" or k == "batLagger" then
 				v23(false)
 			end
 		end
 	end
 	local function fn43(arg)
-		if arg == "autoPlay" then
-			return Config._isAutoplayActive and (Config._isAutoplayActive()) or false
+		if arg == "autoLeft" then
+			return Config.autoLeftEnabled == true
+		end
+		if arg == "autoRight" then
+			return Config.autoRightEnabled == true
 		end
 		if arg == "aimbot" then
 			return Config.batAimbotToggled and not Config.batLaggerToggled
@@ -28989,15 +29168,19 @@ Config._buildQuickGui = function()
 			end
 		elseif arg == "tpDown" then
 			Config.Core.Call("TPDown", "Run")
-		elseif arg == "autoPlay" then
-			if Config._isAutoplayActive and (Config._isAutoplayActive()) then
-				Config.Core.Call("AutoPlay", "Stop")
+		elseif arg == "autoLeft" then
+			if Config.autoLeftEnabled then
+				stopAutoLeft()
 			else
 				fn42(arg)
-				Config.Core.Call("AutoPlay", "Start")
+				startAutoLeft()
 			end
-			if setAutoPlay then
-				setAutoPlay(Config._isAutoplayActive and (Config._isAutoplayActive()) or false)
+		elseif arg == "autoRight" then
+			if Config.autoRightEnabled then
+				stopAutoRight()
+			else
+				fn42(arg)
+				startAutoRight()
 			end
 		elseif arg == "aimbot" then
 			if Config.batLaggerToggled then
@@ -29309,19 +29492,6 @@ Config._buildQuickGui = function()
 		if os.clock() - n24 >= 0.2 then
 			n24 = os.clock()
 			syncQuickButtons()
-			pcall(function()
-				local autoPlay = Config._quickButtonFrames and Config._quickButtonFrames.autoPlay
-				local textButton = autoPlay and (autoPlay:FindFirstChildOfClass("TextButton"))
-				if textButton then
-					if Config._isAutoplayActive and (Config._isAutoplayActive()) then
-						textButton.Text = "AUTO\n"
-							.. (Config.autoLeftEnabled and "L" or Config.autoRightEnabled and "R" or "")
-							.. (Config.autoPlayVersion == "V2" and "2" or "1")
-					else
-						textButton.Text = "AUTO\nPLAY"
-					end
-				end
-			end)
 		end
 	end)
 	for k, v23 in pairs(stackWrappers) do
