@@ -9917,7 +9917,7 @@ tbl31 = {
 			if UserInputService.TouchEnabled then
 				local currentCamera = workspace.CurrentCamera
 				local viewportSize = currentCamera and currentCamera.ViewportSize or (Vector2.new(800, 600))
-				n18 = (math.clamp(math.min((viewportSize.X - 16) / 500, (viewportSize.Y - 16) / 528), 0.5, 0.82))
+				n18 = (math.clamp(math.min((viewportSize.X - 16) / 478, (viewportSize.Y - 16) / 528), 0.5, 0.82))
 			end
 			Config.uiScale = math.clamp(math.floor((tonumber(arg) or Config.uiScale or 1) * 20 + 0.5) / 20, 0.5, n18)
 			if uiScale and uiScale.Parent then
@@ -10050,7 +10050,7 @@ tbl31 = {
 		if UserInputService.TouchEnabled then
 			character = workspace.CurrentCamera
 			local viewportSize = character and character.ViewportSize or (Vector2.new(800, 600))
-			local n18 = math.clamp(math.min((viewportSize.X - 16) / 500, (viewportSize.Y - 16) / 528), 0.5, 0.82)
+			local n18 = math.clamp(math.min((viewportSize.X - 16) / 478, (viewportSize.Y - 16) / 528), 0.5, 0.82)
 			if (tonumber(Config.uiScale) or 1) > n18 then
 				Config._applyMainUIScale(n18, false)
 			end
@@ -10069,8 +10069,8 @@ tbl31 = {
 		end
 		frame = Instance.new("Frame", screenGui)
 		frame.Name = "MainWrapper"
-		frame.Size = UDim2.new(0, 500, 0, 528)
-		frame.Position = fn3(tbl2.main, UDim2.new(0.5, -250, 0.5, -264), 500, 528)
+		frame.Size = UDim2.new(0, 478, 0, 528)
+		frame.Position = fn3(tbl2.main, UDim2.new(0.5, -239, 0.5, -264), 478, 528)
 		frame.BackgroundColor3 = glass.bg
 		frame.BackgroundTransparency = 0
 		frame.BorderSizePixel = 0
@@ -10646,8 +10646,8 @@ tbl31 = {
 				if Config._closeSkinGallery then
 					pcall(Config._closeSkinGallery)
 				end
-				if not fn73(frame.Position, 500, 528) then
-					frame.Position = UDim2.new(0.5, -250, 0.5, -264)
+				if not fn73(frame.Position, 478, 528) then
+					frame.Position = UDim2.new(0.5, -239, 0.5, -264)
 				end
 				frame.Visible = true
 				if modernOpenScale then
@@ -10718,8 +10718,8 @@ tbl31 = {
 							frame4.Visible = true
 						end
 					elseif not frame.Visible and not (vx7ButtonManager and vx7ButtonManager.Visible) then
-						if not fn73(frame.Position, 500, 528) then
-							frame.Position = UDim2.new(0.5, -250, 0.5, -264)
+						if not fn73(frame.Position, 478, 528) then
+							frame.Position = UDim2.new(0.5, -239, 0.5, -264)
 						end
 						local modernOpenScale = frame:FindFirstChild("ModernOpenScale")
 						if modernOpenScale then
@@ -10768,10 +10768,10 @@ tbl31 = {
 			{}
 		frame3, frame2 = 1 / #tbl45, Instance.new("Frame", character)
 		frame2.Name = "BottomNavigation"
-		frame2.Size = UDim2.new(0, 140, 1, 0)
+		frame2.Size = UDim2.new(0, 118, 1, 0)
 		frame2.Position = UDim2.new(0, 0, 0, 0)
 		frame2.BackgroundColor3 = glass.panel
-		frame2.BackgroundTransparency = 0
+		frame2.BackgroundTransparency = 1 -- sidebar black now comes from SidebarFade (soft edge into the image)
 		frame2.BorderSizePixel = 0
 		frame2.ZIndex = 5
 		frame2.ClipsDescendants = true
@@ -10783,7 +10783,8 @@ tbl31 = {
 			sq.Size = UDim2.new(0, 40, 1, 0)
 			sq.Position = UDim2.new(1, -40, 0, 0)
 			sq.BackgroundColor3 = glass.panel
-			sq.BackgroundTransparency = 0
+			sq.BackgroundTransparency = 1
+			sq.Visible = false
 			sq.BorderSizePixel = 0
 			sq.ZIndex = 5
 		end)()
@@ -10818,8 +10819,8 @@ tbl31 = {
 			ColorSequenceKeypoint.new(1, glass.accent),
 		})
 		local tbl48, str3, frame5 = {}, "Main", Instance.new("Frame", character)
-		frame5.Size = UDim2.new(1, -160, 1, -12)
-		frame5.Position = UDim2.new(0, 150, 0, 4)
+		frame5.Size = UDim2.new(1, -138, 1, -12)
+		frame5.Position = UDim2.new(0, 128, 0, 4)
 		frame5.BackgroundColor3 = glass.bg
 		frame5.BackgroundTransparency = 1
 		frame5.BorderSizePixel = 0
@@ -10842,11 +10843,11 @@ tbl31 = {
 		for i, v43 in ipairs(tbl45) do
 			textButton = Instance.new("TextButton", frame2)
 			textButton.Name = "Tab_" .. v43
-			textButton.Size = UDim2.new(1, -28, 0, 44)
-			textButton.Position = UDim2.new(0, 14, 0.5, -110 + (i - 1) * 54)
+			textButton.Size = UDim2.new(1, -24, 0, 44)
+			textButton.Position = UDim2.new(0, 12, 0.5, -122 + (i - 1) * 60) -- 60px step = 16px gap between tabs
 			textButton.BackgroundTransparency = 1
 			textButton.Text = tbl46[v43] or v43
-			textButton.TextColor3 = glass.muted
+			textButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 			textButton.Font = Enum.Font.GothamBold
 			textButton.TextSize = 15
 			textButton.TextXAlignment = Enum.TextXAlignment.Center
@@ -10884,6 +10885,13 @@ tbl31 = {
 			character.Visible = false
 			mkCorner(character, 2)
 			tbl48[v43] = { btn = textButton, indicator = character, activeBg = i }
+			;(function(btn)
+				btn:GetPropertyChangedSignal("TextColor3"):Connect(function()
+					if btn.TextColor3 ~= Color3.fromRGB(255, 255, 255) then
+						btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+					end
+				end)
+			end)(textButton)
 			textButton.MouseButton1Click:Connect(function()
 				if str3 == v43 then
 					return
@@ -10891,7 +10899,7 @@ tbl31 = {
 				str3 = v43
 				for k, v44 in pairs(tbl48) do
 					local flag9 = k == v43
-					v44.btn.TextColor3 = flag9 and glass.text or glass.muted
+					v44.btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 					v44.activeBg.BackgroundColor3 = glass.accent
 					v44.activeBg.BackgroundTransparency = flag9 and 0.32 or 1
 					v44.indicator.BackgroundColor3 = flag9 and glass.accent2 or glass.border
@@ -10907,9 +10915,39 @@ tbl31 = {
 			end)
 		end
 		frame2.Parent = frame:FindFirstChild("ClipWrapper") or frame2.Parent
+		;(function()
+			-- Black sidebar that fades softly into the background image (tune the numbers below).
+			local clip = frame:FindFirstChild("ClipWrapper")
+			if not clip then
+				return
+			end
+			local SIDEBAR_W, FADE_INTO_IMAGE = 118, 72
+			local fade = Instance.new("Frame")
+			fade.Name = "SidebarFade"
+			fade.Size = UDim2.new(0, SIDEBAR_W + FADE_INTO_IMAGE, 1, 0)
+			fade.Position = UDim2.new(0, 0, 0, 0)
+			fade.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			fade.BackgroundTransparency = 0
+			fade.BorderSizePixel = 0
+			fade.Active = false
+			fade.ZIndex = 0 -- above the image, below the page content and the tabs
+			fade:SetAttribute("VX7ModeBtn", true) -- theme code skips this frame and its gradient
+			mkCorner(fade, 30)
+			local fadeGradient = Instance.new("UIGradient", fade)
+			fadeGradient.Name = "SidebarFadeGradient"
+			fadeGradient.Rotation = 0
+			fadeGradient.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0),
+				NumberSequenceKeypoint.new(0.58, 0),
+				NumberSequenceKeypoint.new(0.72, 0.3),
+				NumberSequenceKeypoint.new(0.86, 0.7),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			fade.Parent = clip
+		end)()
 		for k, v43 in pairs(tbl48) do
 			character = k == str3
-			v43.btn.TextColor3 = character and glass.text or glass.muted
+			v43.btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			v43.activeBg.BackgroundColor3 = glass.accent
 			v43.activeBg.BackgroundTransparency = character and 0.32 or 1
 			v43.indicator.BackgroundColor3 = character and glass.accent2 or glass.border
@@ -11051,7 +11089,7 @@ tbl31 = {
 				return
 			end
 			if result.main then
-				frame.Position = fn74(result.main, UDim2.new(0.5, -250, 0.5, -264), 500, 528)
+				frame.Position = fn74(result.main, UDim2.new(0.5, -239, 0.5, -264), 478, 528)
 			end
 			if result.minimized then
 				frame4.Position = fn4(result.minimized)
