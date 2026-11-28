@@ -386,7 +386,8 @@ Config = {
 	warningE01Enabled = true,
 	warningE01Scale = 1,
 	bgMode = "image",
-	fontStyle = "VX7 Original",
+	fontStyle = "Spicy Sale",
+	fontExplicit = false,
 	billboardScale = 0.5,
 	statsBarEnabled = false,
 	_getBatTpStuds = function(arg)
@@ -3207,6 +3208,46 @@ local function fn29(arg)
 		end
 	end)
 end
+Config._timerCardColors = {
+	headerTop = Color3.fromRGB(10, 40, 140),
+	headerBottom = Color3.fromRGB(52, 132, 252),
+	border = Color3.fromRGB(30, 90, 220),
+	title = Color3.fromRGB(205, 228, 255),
+	body = Color3.fromRGB(0, 0, 2),
+}
+Config._styleTimerCard = function(card, title, headerHeight, titleSize)
+	local colors = Config._timerCardColors
+	card.BackgroundColor3 = colors.body
+	card.BackgroundTransparency = 0
+	card.BorderSizePixel = 0
+	card.ClipsDescendants = true
+	local corner = card:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", card)
+	corner.CornerRadius = UDim.new(0, 12)
+	local stroke = card:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke", card)
+	stroke.Color = colors.border
+	stroke.Thickness = 2
+	stroke.Transparency = 0
+	local header = Instance.new("Frame", card)
+	header.Name = "VX7TimerHeader"
+	header.Size = UDim2.new(1, 0, 0, headerHeight)
+	header.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	header.BorderSizePixel = 0
+	header.ZIndex = card.ZIndex + 1
+	local gradient = Instance.new("UIGradient", header)
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new(colors.headerTop, colors.headerBottom)
+	local label = Instance.new("TextLabel", header)
+	label.Name = "VX7TimerTitle"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = title
+	label.Font = Enum.Font.GothamBlack
+	label.TextSize = titleSize
+	label.TextColor3 = colors.title
+	label.TextStrokeTransparency = 1
+	label.ZIndex = header.ZIndex + 1
+	return header, label, stroke
+end
 local tbl27, v19 = { sg = nil, frame = nil, discord = nil, divider = nil, speed = nil, scale = nil, brandLabels = {} }
 Config.isStealing = false
 Config._buildHeadDisplay = function(discord)
@@ -3227,7 +3268,7 @@ Config._buildHeadDisplay = function(discord)
 	screenGui.IgnoreGuiInset = true
 	screenGui.Parent = localPlayer:FindFirstChild("PlayerGui") or CoreGui
 	local frame = Instance.new("Frame", screenGui)
-	frame.Size = UDim2.new(0, 240, 0, 76)
+	frame.Size = UDim2.new(0, 300, 0, 94)
 	frame.BackgroundTransparency = 1
 	frame.BorderSizePixel = 0
 	frame.ZIndex = 3
@@ -3256,7 +3297,7 @@ Config._buildHeadDisplay = function(discord)
 			)
 	end
 	local frame2 = Instance.new("Frame", frame)
-	frame2.Size = UDim2.new(1, 0, 0, 32)
+	frame2.Size = UDim2.new(1, 0, 0, 40)
 	frame2.Position = UDim2.new(0, 20, 0, 0)
 	frame2.BackgroundTransparency = 1
 	frame2.ZIndex = 3
@@ -3266,29 +3307,29 @@ Config._buildHeadDisplay = function(discord)
 		textLabel2.Position = position
 		textLabel2.BackgroundTransparency = 1
 		textLabel2.Text = text
-		textLabel2.TextColor3 = Color3.fromRGB(255, 50, 60)
+		textLabel2.TextColor3 = Color3.fromRGB(52, 132, 252)
 		textLabel2.Font = Enum.Font.GothamBlack
 		textLabel2.TextSize = textSize
 		textLabel2.TextStrokeTransparency = 0.15
-		textLabel2.TextStrokeColor3 = Color3.fromRGB(70, 10, 16)
+		textLabel2.TextStrokeColor3 = Color3.fromRGB(8, 36, 90)
 		textLabel2.TextXAlignment = textXAlignment
 		textLabel2.ZIndex = 3
 		fn30(textLabel2)
 		table.insert(tbl27.brandLabels, textLabel2)
 		return textLabel2
 	end
-	discord = createTextLabel("discord.gg/sawyerhub", 26, UDim2.new(0.5, -110, 0, 0), 220, Enum.TextXAlignment.Center)
+	discord = createTextLabel("discord.gg/sawyerhub", 32, UDim2.new(0.5, -135, 0, 0), 270, Enum.TextXAlignment.Center)
 	-- divider line removed
 	local textLabel2 = Instance.new("TextLabel", frame)
-	textLabel2.Size = UDim2.new(1, 0, 0, 34)
-	textLabel2.Position = UDim2.new(0, 0, 0, 30)
+	textLabel2.Size = UDim2.new(1, 0, 0, 44)
+	textLabel2.Position = UDim2.new(0, 0, 0, 38)
 	textLabel2.BackgroundTransparency = 1
 	textLabel2.Text = string.format("%.1f", tonumber(Config.normalSpeed) or 0)
-	textLabel2.TextColor3 = Color3.fromRGB(255, 50, 60)
+	textLabel2.TextColor3 = Color3.fromRGB(52, 132, 252)
 	textLabel2.Font = Enum.Font.GothamBold
-	textLabel2.TextSize = 32
+	textLabel2.TextSize = 40
 	textLabel2.TextStrokeTransparency = 0.15
-	textLabel2.TextStrokeColor3 = Color3.fromRGB(70, 10, 16)
+	textLabel2.TextStrokeColor3 = Color3.fromRGB(8, 36, 90)
 	textLabel2.TextXAlignment = Enum.TextXAlignment.Center
 	textLabel2.ZIndex = 3
 	fn30(textLabel2)
@@ -3324,8 +3365,8 @@ Config._buildHeadDisplay = function(discord)
 				if v21 then
 					local scale = uiScale.Scale
 					frame.Position = UDim2.fromOffset(
-						math.floor(v20.X) - math.floor(120 * scale),
-						math.floor(v20.Y) - math.floor(76 * scale)
+						math.floor(v20.X) - math.floor(150 * scale),
+						math.floor(v20.Y) - math.floor(94 * scale)
 					)
 				end
 			end
@@ -3359,8 +3400,8 @@ Config._buildHeadDisplay = function(discord)
 		syncSpeedToDiscord()
 	end)()
 	local function forceHeadPurple()
-		local purple = Color3.fromRGB(255, 50, 60)
-		local stroke = Color3.fromRGB(70, 10, 16)
+		local purple = Color3.fromRGB(52, 132, 252)
+		local stroke = Color3.fromRGB(8, 36, 90)
 		if tbl27.discord and tbl27.discord.Parent then
 			tbl27.discord.TextColor3 = purple
 			tbl27.discord.TextStrokeColor3 = stroke
@@ -3399,15 +3440,15 @@ Config._applyHeadDisplayScale = function(arg)
 	return Config.billboardScale
 end
 local tbl28 = {
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
-	"rbxassetid://114878921210431",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
+	"rbxassetid://136755079678618",
 }
 local function fn30(arg)
 	for k, v20 in pairs(arg) do
@@ -3415,7 +3456,7 @@ local function fn30(arg)
 	end
 	return arg
 end
-Config._currentBackgroundAsset = "rbxassetid://114878921210431"
+Config._currentBackgroundAsset = "rbxassetid://136755079678618"
 Config.bgMode = "image"
 Config._theme = {
 	palettes = {
@@ -3637,7 +3678,33 @@ do
 			p.rowPanel, p.rowHover = rowBlack, rowHover
 		end
 	end
+	local discordBlue = Color3.fromRGB(52, 132, 252)
+	local blueTheme = {
+		bg = Color3.fromRGB(8, 12, 24),
+		top = Color3.fromRGB(12, 18, 34),
+		side = Color3.fromRGB(10, 15, 30),
+		panel = Color3.fromRGB(18, 28, 54),
+		hover = Color3.fromRGB(28, 46, 92),
+		border = Color3.fromRGB(40, 100, 210),
+		accent = discordBlue,
+		accent2 = Color3.fromRGB(60, 190, 255),
+		fill = discordBlue,
+		fillIdle = Color3.fromRGB(24, 48, 100),
+		statsBg = Color3.fromRGB(6, 10, 22),
+		statsText = Color3.fromRGB(255, 255, 255),
+		statsMuted = Color3.fromRGB(150, 185, 235),
+		statsAccent = discordBlue,
+		brand = discordBlue,
+		text = Color3.fromRGB(255, 255, 255),
+		muted = Color3.fromRGB(170, 195, 235),
+		contrast = Color3.fromRGB(8, 12, 24),
+	}
 	for _, p in ipairs(Config._theme.palettes) do
+		for key, value in pairs(blueTheme) do
+			if p[key] ~= nil then
+				p[key] = value
+			end
+		end
 		setRows(p)
 	end
 	setRows(Config._theme.base)
@@ -4004,7 +4071,8 @@ local function fn31()
 		floatScale = Config.floatScale or 0.7,
 		stealBarScale = Config.stealBarScale or 1,
 		stealBarStyle = Config.stealBarStyle or "Compact",
-		fontStyle = Config.fontStyle or "VX7 Original",
+		fontStyle = Config.fontStyle or "Spicy Sale",
+		fontExplicit = Config.fontExplicit == true,
 		billboardScale = Config.billboardScale or 0.5,
 		statsBarEnabled = Config.statsBarEnabled ~= false,
 		fovEnabled = Config.fovEnabled or false,
@@ -4086,7 +4154,8 @@ local function fn33()
 		quickLayoutVersion = Config._quickLayoutVersion or 4,
 		lockButtonsEnabled = Config.lockButtonsEnabled or false,
 		uiLocked = Config.uiLocked or false,
-		fontStyle = Config.fontStyle or "VX7 Original",
+		fontStyle = Config.fontStyle or "Spicy Sale",
+		fontExplicit = Config.fontExplicit == true,
 		billboardScale = Config.billboardScale or 0.5,
 		statsBarEnabled = Config.statsBarEnabled ~= false,
 		speedKey = tbl11.speed and tbl11.speed.Name or (Config._speedKeyCleared and "_cleared_" or nil),
@@ -4757,11 +4826,16 @@ local function fn39()
 	if v23.buttonShape ~= nil then
 		Config.buttonShape = v23.buttonShape == "Circle" and "Circle" or "Square"
 	end
+	if v23.fontExplicit ~= nil then
+		Config.fontExplicit = v23.fontExplicit == true
+	end
 	if v23.fontStyle ~= nil and (Config._fontStyleValid(v23.fontStyle)) then
-		Config.fontStyle = v23.fontStyle
-		if Config._syncFontStyleChoice then
-			task.defer(Config._syncFontStyleChoice)
+		if v23.fontStyle ~= "VX7 Original" or Config.fontExplicit == true then
+			Config.fontStyle = v23.fontStyle
 		end
+	end
+	if Config._syncFontStyleChoice then
+		task.defer(Config._syncFontStyleChoice)
 	end
 	if v23.billboardScale ~= nil then
 		Config.billboardScale = 0.5 -- locked default 50%
@@ -6811,21 +6885,11 @@ tbl31 = {
 					character2.BorderSizePixel = 0
 					tbl40.scale = Instance.new("UIScale", character2)
 					Config._setWarningE01Scale(Config.warningE01Scale)
-					Instance.new("UICorner", character2).CornerRadius = UDim.new(0, 10)
-					local uiStroke = Instance.new("UIStroke", character2)
-					uiStroke.Color = Color3.fromRGB(232, 31, 58)
-					uiStroke.Thickness = 1.15
-					uiStroke.Transparency = 0.28
-					head = Instance.new("TextLabel", character2)
-					head.Size = UDim2.new(1, 0, 0, 22)
-					head.BackgroundTransparency = 1
-					head.Text = "WARNING E01"
-					head.Font = Enum.Font.GothamBold
-					head.TextSize = 13
-					head.TextColor3 = Color3.fromRGB(255, 255, 255)
+					local _, headLabel, uiStroke = Config._styleTimerCard(character2, "WARNING E01", 24, 15)
+					head = headLabel
 					local textLabel2 = Instance.new("TextLabel", character2)
 					textLabel2.Size = UDim2.new(1, 0, 0, 30)
-					textLabel2.Position = UDim2.fromOffset(0, 23)
+					textLabel2.Position = UDim2.fromOffset(0, 25)
 					textLabel2.BackgroundTransparency = 1
 					textLabel2.Text = "SAFE IN 3.00s"
 					textLabel2.Font = Enum.Font.GothamMedium
@@ -6845,7 +6909,7 @@ tbl31 = {
 							textLabel2.Text = string.format("SAFE IN %.2fs", n18)
 							if n18 < 1 then
 								textLabel2.TextColor3 = Color3.fromRGB(255, 255, 255)
-								uiStroke.Color = Color3.fromRGB(232, 31, 58)
+								uiStroke.Color = Config._timerCardColors.border
 							end
 							return
 						end
@@ -6853,7 +6917,7 @@ tbl31 = {
 						tbl40.timer = nil
 						textLabel2.Text = "SAFE TO STEAL"
 						textLabel2.TextColor3 = Color3.fromRGB(255, 255, 255)
-						uiStroke.Color = Color3.fromRGB(232, 31, 58)
+						uiStroke.Color = Config._timerCardColors.border
 						task.delay(1.5, function()
 							if generation == tbl40.generation then
 								tbl40.clear()
@@ -10025,9 +10089,9 @@ tbl31 = {
 										{ { "text", "text" }, { "muted", "muted" }, { "contrast", "contrast" } }
 									))
 						if v42 == "brand" then
-							fn70(arg, { TextColor3 = Color3.fromRGB(255, 50, 60) })
+							fn70(arg, { TextColor3 = Color3.fromRGB(52, 132, 252) })
 							if arg.TextStrokeTransparency < 1 then
-								fn70(arg, { TextStrokeColor3 = Color3.fromRGB(70, 10, 16), TextStrokeTransparency = 0.15 })
+								fn70(arg, { TextStrokeColor3 = Color3.fromRGB(8, 36, 90), TextStrokeTransparency = 0.15 })
 							end
 						elseif flag7 then
 							fn70(arg, { TextColor3 = Color3.fromRGB(255, 244, 198) })
@@ -10466,14 +10530,14 @@ tbl31 = {
 			imageLabel.Size = UDim2.new(1, 0, 1, 0)
 			imageLabel.BackgroundTransparency = 1
 			imageLabel.BorderSizePixel = 0
-			imageLabel.Image = "rbxassetid://114878921210431"
+			imageLabel.Image = "rbxassetid://136755079678618"
 			imageLabel.ImageTransparency = 0
 			imageLabel.ScaleType = Enum.ScaleType.Crop
 			imageLabel.ZIndex = 0
 			mkCorner(imageLabel, 30)
 			v20 = imageLabel
 			local function fn72(arg, arg2)
-				local v42 = tbl28[arg] or "rbxassetid://114878921210431"
+				local v42 = tbl28[arg] or "rbxassetid://136755079678618"
 				if not v42 then
 					return nil
 				end
@@ -10532,9 +10596,9 @@ tbl31 = {
 						if arg ~= n13 then
 							return
 						end
-						imageLabel.Image = v42 or "rbxassetid://114878921210431"
-						v27 = v42 or "rbxassetid://114878921210431"
-						Config._currentBackgroundAsset = v42 or "rbxassetid://114878921210431"
+						imageLabel.Image = v42 or "rbxassetid://136755079678618"
+						v27 = v42 or "rbxassetid://136755079678618"
+						Config._currentBackgroundAsset = v42 or "rbxassetid://136755079678618"
 						imageLabel.ImageTransparency = 0
 						if Config._backgroundPreview then
 							Config._backgroundPreview.Image = v42
@@ -14230,25 +14294,24 @@ tbl31 = {
 					local billboardGui = Instance.new("BillboardGui")
 					billboardGui.Name = "RagCountdownBillboard"
 					billboardGui.Adornee = humanoidRootPart2
-					billboardGui.Size = UDim2.new(0, 66, 0, 32)
+					billboardGui.Size = UDim2.new(0, 132, 0, 70)
 					billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)
 					billboardGui.AlwaysOnTop = true
 					billboardGui.Parent = playerGui2
 					v45 = billboardGui
+					local ragCard = Instance.new("Frame", billboardGui)
+					ragCard.Size = UDim2.fromScale(1, 1)
+					Config._styleTimerCard(ragCard, "RAGDOLL TIMER", 24, 14)
 					local textLabel5 = Instance.new("TextLabel")
-					textLabel5.Size = UDim2.fromScale(1, 1)
-					textLabel5.BackgroundColor3 = Color3.fromRGB(215, 25, 40)
-					textLabel5.BackgroundTransparency = 0.42
+					textLabel5.Position = UDim2.fromOffset(0, 24)
+					textLabel5.Size = UDim2.new(1, 0, 1, -24)
+					textLabel5.BackgroundTransparency = 1
 					textLabel5.Font = Enum.Font.GothamBlack
-					textLabel5.TextScaled = true
+					textLabel5.TextScaled = false
+					textLabel5.TextSize = 28
 					textLabel5.TextColor3 = Color3.fromRGB(255, 255, 255)
-					textLabel5.TextStrokeColor3 = Color3.new(0, 0, 0)
 					textLabel5.TextStrokeTransparency = 1
-					Instance.new("UICorner", textLabel5).CornerRadius = UDim.new(0, 8)
-					local ragPad = Instance.new("UIPadding", textLabel5)
-					ragPad.PaddingTop = UDim.new(0, 4)
-					ragPad.PaddingBottom = UDim.new(0, 4)
-					textLabel5.Parent = billboardGui
+					textLabel5.Parent = ragCard
 					task.spawn(function()
 						local function fn83()
 							pcall(function()
@@ -14461,7 +14524,7 @@ tbl31 = {
 					screenGui2.Parent = playerGui2
 					local frame7 = Instance.new("Frame", screenGui2)
 					frame7.Name = "EnemyRagdollOverlay"
-					frame7.Size = UDim2.fromOffset(80, 40)
+					frame7.Size = UDim2.fromOffset(100, 60)
 					frame7.AnchorPoint = Vector2.new(0.5, 0.5)
 					frame7.BackgroundTransparency = 1
 					frame7.BorderSizePixel = 0
@@ -14474,35 +14537,20 @@ tbl31 = {
 					frame6.BackgroundTransparency = arg4 == "medusa" and 0.45 or 0.42
 					frame6.BorderSizePixel = 0
 					frame6.ZIndex = 1001
-					Instance.new("UICorner", frame6).CornerRadius = UDim.new(0, 11)
 					name = Config._currentThemePalette or Config._theme and Config._theme.active
-					local accent, accent2, uiStroke2 =
-						name and (name.accent or name.text) or (Color3.fromRGB(232, 69, 79)),
-						name and (name.accent2 or name.accent) or (Color3.fromRGB(184, 105, 255)),
-						Instance.new("UIStroke", frame6)
-					uiStroke2.Color = arg4 == "medusa" and accent2 or Color3.fromRGB(232, 31, 58)
-					uiStroke2.Transparency = 0.18
-					uiStroke2.Thickness = 1.2
-					local textLabel5 = Instance.new("TextLabel", frame6)
-					textLabel5.Size = UDim2.new(1, 0, 0, 11)
-					textLabel5.Position = UDim2.fromOffset(0, 2)
-					textLabel5.BackgroundTransparency = 1
-					textLabel5.Text = arg4 == "medusa" and "MEDUSA" or "RAGDOLL"
-					textLabel5.Font = Enum.Font.GothamBold
-					textLabel5.TextSize = 7
-					textLabel5.TextColor3 = arg4 == "medusa" and accent2 or Color3.fromRGB(255, 255, 255)
-					textLabel5.TextStrokeTransparency = 1
-					textLabel5.ZIndex = 1002
+					local accent2 = name and (name.accent2 or name.accent) or (Color3.fromRGB(60, 190, 255))
+					local _, textLabel5, uiStroke2 =
+						Config._styleTimerCard(frame6, arg4 == "medusa" and "MEDUSA" or "RAGDOLL", 20, 12)
+					textLabel5.TextColor3 = arg4 == "medusa" and accent2 or Config._timerCardColors.title
 					local textLabel6 = Instance.new("TextLabel", frame6)
-					textLabel6.Size = UDim2.new(1, -8, 0, 20)
-					textLabel6.Position = UDim2.fromOffset(4, 11)
+					textLabel6.Position = UDim2.fromOffset(0, 20)
+					textLabel6.Size = UDim2.new(1, 0, 1, -20)
 					textLabel6.BackgroundTransparency = 1
 					textLabel6.Font = Enum.Font.GothamBlack
 					textLabel6.TextScaled = false
-					textLabel6.TextSize = 15
+					textLabel6.TextSize = 22
 					textLabel6.TextColor3 = arg4 == "medusa" and accent2 or Color3.fromRGB(255, 255, 255)
-					textLabel6.TextStrokeColor3 = Color3.new(0, 0, 0)
-					textLabel6.TextStrokeTransparency = 0.38
+					textLabel6.TextStrokeTransparency = 1
 					textLabel6.ZIndex = 1002
 					local tbl55 = { gui = screenGui2, token = 1, effectType = arg4 }
 					tbl54[arg] = tbl55
@@ -14553,11 +14601,11 @@ tbl31 = {
 								end
 								if arg4 == "medusa" then
 									textLabel5.TextColor3 = textLabel6.TextColor3
-									uiStroke2.Color = textLabel6.TextColor3
+									uiStroke2.Color = Config._timerCardColors.border
 								else
 									textLabel5.TextColor3 = Color3.fromRGB(255, 255, 255)
 									textLabel6.TextColor3 = Color3.fromRGB(255, 255, 255)
-									uiStroke2.Color = Color3.fromRGB(232, 31, 58)
+									uiStroke2.Color = Config._timerCardColors.border
 								end
 							end)
 						end
@@ -18933,6 +18981,7 @@ tbl31 = {
 			Config._fontUiRefresh = paint
 			originalButton.MouseButton1Click:Connect(function()
 				Config.fontStyle = "VX7 Original"
+				Config.fontExplicit = true
 				Config._syncFontStyleChoice()
 				fn34()
 			end)
@@ -18943,6 +18992,7 @@ tbl31 = {
 					return
 				end
 				Config.fontStyle = "Spicy Sale"
+				Config.fontExplicit = true
 				Config._syncFontStyleChoice()
 				fn34()
 			end)
@@ -19601,7 +19651,7 @@ tbl31 = {
 						TweenService:Create(
 							frame6,
 							TweenInfo.new(0.15),
-							{ BackgroundColor3 = v45 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10) }
+							{ BackgroundColor3 = v45 and Color3.fromRGB(52, 132, 252) or Color3.fromRGB(8, 8, 10) }
 						):Play()
 						TweenService:Create(
 							textLabel2,
@@ -19609,7 +19659,7 @@ tbl31 = {
 							{ TextColor3 = v45 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 255, 255) }
 						):Play()
 						TweenService
-							:Create(uiStroke2, TweenInfo.new(0.15), { Color = v45 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10) })
+							:Create(uiStroke2, TweenInfo.new(0.15), { Color = v45 and Color3.fromRGB(52, 132, 252) or Color3.fromRGB(8, 8, 10) })
 							:Play()
 					end
 					fn90()
@@ -22133,110 +22183,285 @@ tbl31 = {
 				Config._outfitForceConn = Config._outfitForceConn or nil
 				Config._outfitForceName = Config._outfitForceName or nil
 
-				local function clearAll(char)
-					if not char then return end
+				local O = {}
+				local OUTFIT_TAG = "VX7Outfit"
+				Config._outfitCache = Config._outfitCache or {}
+				Config._outfitApplyId = Config._outfitApplyId or 0
+				Config._outfitHeadHidden = Config._outfitHeadHidden or {}
+
+				function O.isWearable(inst)
+					return inst:IsA("Accoutrement") or inst:IsA("Shirt") or inst:IsA("Pants") or inst:IsA("ShirtGraphic")
+				end
+
+				function O.clearForeign(char)
 					for _, v in ipairs(char:GetChildren()) do
-						if v:IsA("Accessory") or v:IsA("Hat") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") then
+						if O.isWearable(v) and not v:GetAttribute(OUTFIT_TAG) and not v:GetAttribute("VX7LocalOnly") then
 							pcall(function() v:Destroy() end)
 						end
 					end
 				end
 
-				local function loadAsset(id)
-					local ok, objects = pcall(function()
-						if type(game.GetObjects) == "function" then
-							return game:GetObjects("rbxassetid://" .. tostring(id))
+				function O.removeOurs(char)
+					for _, d in ipairs(char:GetDescendants()) do
+						if d:GetAttribute(OUTFIT_TAG) then
+							pcall(function() d:Destroy() end)
 						end
-						return nil
+					end
+				end
+
+				function O.restoreHead()
+					for _, saved in ipairs(Config._outfitHeadHidden) do
+						pcall(function()
+							if saved.inst and saved.inst.Parent then
+								saved.inst[saved.prop] = saved.value
+							end
+						end)
+					end
+					Config._outfitHeadHidden = {}
+				end
+
+				function O.hideOriginalHead(char)
+					local head = char:FindFirstChild("Head")
+					if not (head and head:IsA("BasePart")) then return end
+					for _, saved in ipairs(Config._outfitHeadHidden) do
+						if saved.inst == head then return end
+					end
+					table.insert(Config._outfitHeadHidden, { inst = head, prop = "LocalTransparencyModifier", value = head.LocalTransparencyModifier })
+					head.LocalTransparencyModifier = 1
+					for _, d in ipairs(head:GetChildren()) do
+						if (d:IsA("Decal") or d:IsA("Texture")) and not d:GetAttribute(OUTFIT_TAG) then
+							table.insert(Config._outfitHeadHidden, { inst = d, prop = "Transparency", value = d.Transparency })
+							d.Transparency = 1
+						end
+					end
+				end
+
+				function O.loadAssetRaw(id)
+					local numeric = tonumber(id)
+					if not numeric then return nil end
+					local ok, objects = pcall(function()
+						return game:GetObjects("rbxassetid://" .. numeric)
 					end)
 					if ok and type(objects) == "table" and objects[1] then
-						return objects[1]
+						return objects
 					end
-					ok, objects = pcall(function()
-						return game:GetService("InsertService"):LoadAsset(tonumber(id))
+					local ok2, container = pcall(function()
+						return game:GetService("InsertService"):LoadAsset(numeric)
 					end)
-					if ok and objects then
-						local kids = objects:GetChildren()
-						return kids[1] or objects
+					if ok2 and container then
+						local kids = container:GetChildren()
+						if #kids > 0 then return kids end
 					end
 					return nil
 				end
 
-				local function forceAccessory(id, char)
-					if not id or not char then return end
-					local asset = loadAsset(id)
-					if not asset then return end
-					local acc = nil
-					if asset:IsA("Accessory") or asset:IsA("Hat") then
-						acc = asset
-					else
-						acc = asset:FindFirstChildOfClass("Accessory") or asset:FindFirstChildOfClass("Hat")
-						if not acc then
-							for _, child in ipairs(asset:GetDescendants()) do
-								if child:IsA("Accessory") or child:IsA("Hat") then
-									acc = child
-									break
-								end
+				function O.getAssetObjects(id)
+					local cached = Config._outfitCache[id]
+					if cached then return cached end
+					for attempt = 1, 3 do
+						local objects = O.loadAssetRaw(id)
+						if objects and #objects > 0 then
+							Config._outfitCache[id] = objects
+							return objects
+						end
+						task.wait(0.25 * attempt)
+					end
+					return nil
+				end
+
+				function O.findFirst(objects, classes)
+					for _, root in ipairs(objects) do
+						for _, class in ipairs(classes) do
+							if root:IsA(class) then return root end
+						end
+						for _, d in ipairs(root:GetDescendants()) do
+							for _, class in ipairs(classes) do
+								if d:IsA(class) then return d end
 							end
 						end
 					end
-					if acc then
+					return nil
+				end
+
+				function O.sanitize(root)
+					for _, d in ipairs(root:GetDescendants()) do
+						if d:IsA("LuaSourceContainer") then
+							pcall(function() d:Destroy() end)
+						end
+					end
+				end
+
+				function O.weldTo(part, target)
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = target
+					weld.Part1 = part
+					weld.Parent = part
+				end
+
+				function O.hasJoint(handle)
+					for _, c in ipairs(handle:GetChildren()) do
+						if c:IsA("JointInstance") or c:IsA("WeldConstraint") then return true end
+					end
+					return false
+				end
+
+				function O.manualAttach(handle, char)
+					local srcAtt, targetAtt
+					for _, child in ipairs(handle:GetChildren()) do
+						if child:IsA("Attachment") then
+							for _, d in ipairs(char:GetDescendants()) do
+								if d:IsA("Attachment") and d.Name == child.Name and d.Parent and d.Parent:IsA("BasePart")
+									and not d:FindFirstAncestorWhichIsA("Accoutrement") then
+									srcAtt, targetAtt = child, d
+									break
+								end
+							end
+							if srcAtt then break end
+						end
+					end
+					if srcAtt then
+						handle.CFrame = targetAtt.WorldCFrame * srcAtt.CFrame:Inverse()
+						O.weldTo(handle, targetAtt.Parent)
+						return
+					end
+					local anchor = char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso")
+						or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
+					if anchor and anchor:IsA("BasePart") then
+						handle.CFrame = anchor.CFrame
+						O.weldTo(handle, anchor)
+					end
+				end
+
+				function O.attachAccessory(template, char)
+					local acc = template:Clone()
+					O.sanitize(acc)
+					acc:SetAttribute(OUTFIT_TAG, true)
+					local handle = acc:FindFirstChild("Handle") or acc:FindFirstChildWhichIsA("BasePart", true)
+					if handle then
 						pcall(function()
-							local clone = acc:Clone()
-							clone.Parent = char
+							handle.Anchored = false
+							handle.CanCollide = false
+							handle.Massless = true
 						end)
 					end
+					acc.Parent = char
+					task.wait(0.15)
+					if handle and handle.Parent and not O.hasJoint(handle) then
+						pcall(O.manualAttach, handle, char)
+					end
+					return acc
+				end
+
+				function O.attachHeadPart(template, char)
+					local head = char:FindFirstChild("Head")
+					if not (head and head:IsA("BasePart")) then return nil end
+					local part = template:Clone()
+					O.sanitize(part)
+					part.Name = "VX7_OutfitHead"
+					part:SetAttribute(OUTFIT_TAG, true)
 					pcall(function()
-						if asset and asset.Parent == nil then
-							asset:Destroy()
-						end
+						part.Anchored = false
+						part.CanCollide = false
+						part.CanTouch = false
+						part.CanQuery = false
+						part.Massless = true
+						part.CFrame = head.CFrame
 					end)
+					part.Parent = char
+					O.weldTo(part, head)
+					O.hideOriginalHead(char)
+					return part
+				end
+
+				function O.applyFaceDecal(template, char)
+					local target = char:FindFirstChild("VX7_OutfitHead") or char:FindFirstChild("Head")
+					if not target then return nil end
+					local decal = target:FindFirstChildOfClass("Decal")
+					if not decal then
+						decal = Instance.new("Decal")
+						decal.Name = "face"
+						decal.Face = Enum.NormalId.Front
+						decal:SetAttribute(OUTFIT_TAG, true)
+						decal.Parent = target
+					end
+					decal.Texture = template.Texture
+					decal.Transparency = 0
+					return decal
+				end
+
+				function O.applyEntry(entry, char)
+					local ok, result = pcall(function()
+						if entry.kind == "classic" then
+							local clone = entry.template:Clone()
+							clone:SetAttribute(OUTFIT_TAG, true)
+							clone.Parent = char
+							return clone
+						elseif entry.kind == "accessory" then
+							return O.attachAccessory(entry.template, char)
+						elseif entry.kind == "headpart" then
+							return O.attachHeadPart(entry.template, char)
+						elseif entry.kind == "facedecal" then
+							return O.applyFaceDecal(entry.template, char)
+						end
+						return nil
+					end)
+					if ok then return result end
+					warn("[VX7] Outfit item failed (" .. tostring(entry.kind) .. " " .. tostring(entry.id) .. "): " .. tostring(result))
+					return nil
+				end
+
+				function O.resolvePlan(data)
+					local plan, failed = {}, {}
+					local classicSlots = {
+						{ "shirt", "Shirt", "ShirtTemplate" },
+						{ "pants", "Pants", "PantsTemplate" },
+						{ "tshirt", "ShirtGraphic", "Graphic" },
+					}
+					for _, slot in ipairs(classicSlots) do
+						local id = data[slot[1]]
+						if id then
+							local objects = O.getAssetObjects(id)
+							local inst = objects and O.findFirst(objects, { slot[2] })
+							if not inst then
+								inst = Instance.new(slot[2])
+								pcall(function()
+									inst[slot[3]] = "http://www.roblox.com/asset/?id=" .. tostring(id)
+								end)
+							end
+							table.insert(plan, { kind = "classic", id = id, template = inst })
+						end
+					end
+					for _, key in ipairs({ "hair", "glasses", "head", "face", "back" }) do
+						local id = data[key]
+						if id then
+							local objects = O.getAssetObjects(id)
+							local acc = objects and O.findFirst(objects, { "Accoutrement" })
+							if acc then
+								table.insert(plan, { kind = "accessory", id = id, template = acc })
+							elseif objects and key == "head" then
+								local mesh = O.findFirst(objects, { "MeshPart" })
+								if mesh then
+									table.insert(plan, { kind = "headpart", id = id, template = mesh })
+								else
+									table.insert(failed, key .. ":" .. tostring(id))
+								end
+							elseif objects and key == "face" then
+								local decal = O.findFirst(objects, { "Decal" })
+								if decal then
+									table.insert(plan, { kind = "facedecal", id = id, template = decal })
+								else
+									table.insert(failed, key .. ":" .. tostring(id))
+								end
+							else
+								table.insert(failed, key .. ":" .. tostring(id))
+							end
+						end
+					end
+					return plan, failed
 				end
 
 				local function stopOutfitForce()
-					if Config._outfitForceConn then
-						pcall(function() Config._outfitForceConn:Disconnect() end)
-						Config._outfitForceConn = nil
-					end
-				end
-
-				local function applyOnce(name)
-					local data
-					for _, o in ipairs(outfitsData) do
-						if o.name == name then
-							data = o
-							break
-						end
-					end
-					if not data then return end
-					local char = localPlayer.Character
-					if not char then return end
-					local hum = char:FindFirstChildOfClass("Humanoid")
-					if not hum or hum.Health <= 0 then return end
-					clearAll(char)
-					if data.shirt then
-						local s = Instance.new("Shirt")
-						s.Name = "Shirt"
-						s.ShirtTemplate = "http://www.roblox.com/asset/?id=" .. tostring(data.shirt)
-						s.Parent = char
-					end
-					if data.pants then
-						local p = Instance.new("Pants")
-						p.Name = "Pants"
-						p.PantsTemplate = "http://www.roblox.com/asset/?id=" .. tostring(data.pants)
-						p.Parent = char
-					end
-					if data.tshirt then
-						local t = Instance.new("ShirtGraphic")
-						t.Name = "ShirtGraphic"
-						t.Graphic = "http://www.roblox.com/asset/?id=" .. tostring(data.tshirt)
-						t.Parent = char
-					end
-					if data.hair then forceAccessory(data.hair, char) end
-					if data.glasses then forceAccessory(data.glasses, char) end
-					if data.head then forceAccessory(data.head, char) end
-					if data.face then forceAccessory(data.face, char) end
-					if data.back then forceAccessory(data.back, char) end
+					Config._outfitApplyId = Config._outfitApplyId + 1
 				end
 
 				local function applyOutfitByName(name)
@@ -22244,24 +22469,68 @@ tbl31 = {
 					stopOutfitForce()
 					Config.selectedOutfit = name
 					Config._outfitForceName = name
-					applyOnce(name)
-					local startTime = os.clock()
-					local lastApply = 0
-					Config._outfitForceConn = RunService.Heartbeat:Connect(function()
-						if Config._outfitForceName ~= name then
+					local myId = Config._outfitApplyId
+					task.spawn(function()
+						local function stale()
+							return Config._outfitApplyId ~= myId
+						end
+						local data
+						for _, o in ipairs(outfitsData) do
+							if o.name == name then
+								data = o
+								break
+							end
+						end
+						if not data then return end
+						local char
+						local waited = 0
+						while not stale() and waited < 15 do
+							local c = localPlayer.Character
+							local h = c and c:FindFirstChildOfClass("Humanoid")
+							if h and h.Health > 0 and c:FindFirstChild("HumanoidRootPart") then
+								char = c
+								break
+							end
+							task.wait(0.25)
+							waited = waited + 0.25
+						end
+						if stale() or not char then return end
+						local plan, failed = O.resolvePlan(data)
+						if stale() then return end
+						if #failed > 0 then
+							warn("[VX7] Outfit '" .. name .. "': could not load " .. table.concat(failed, ", "))
+						end
+						if #plan == 0 then
+							warn("[VX7] Outfit '" .. name .. "': nothing could be loaded, current look kept")
 							return
 						end
-						if os.clock() - startTime > 8 then
-							stopOutfitForce()
-							return
+						if localPlayer.Character ~= char then return end
+						O.removeOurs(char)
+						O.restoreHead()
+						O.clearForeign(char)
+						local items = {}
+						for _, entry in ipairs(plan) do
+							if stale() then return end
+							table.insert(items, { entry = entry, inst = O.applyEntry(entry, char) })
 						end
-						if os.clock() - lastApply >= 0.4 then
-							lastApply = os.clock()
-							pcall(applyOnce, name)
+						local startTime = os.clock()
+						while not stale() and localPlayer.Character == char and char.Parent do
+							task.wait(0.5)
+							if stale() then break end
+							local h = char:FindFirstChildOfClass("Humanoid")
+							if h and h.Health > 0 then
+								if os.clock() - startTime < 20 then
+									O.clearForeign(char)
+								end
+								for _, item in ipairs(items) do
+									if not (item.inst and item.inst:IsDescendantOf(char)) then
+										item.inst = O.applyEntry(item.entry, char)
+									end
+								end
+							end
 						end
 					end)
 					pcall(function() if scheduleSaveConfig then scheduleSaveConfig() end end)
-					pcall(function() if fn34 then fn34() end end)
 					pcall(function() if fn35 then fn35() end end)
 				end
 
@@ -26003,7 +26272,7 @@ tbl31 = {
 				tbl57 = {}
 			end
 			local function fn89(arg)
-				if not arg or arg.Name == "Overhead" then
+				if not arg or arg.Name == "Overhead" or arg:GetAttribute("VX7Outfit") then
 					return
 				end
 				pcall(function()
@@ -27349,8 +27618,8 @@ tbl31 = {
 								if v49 then
 									local scale = tbl27.scale and tbl27.scale.Scale or (Config.billboardScale or 0.5)
 									local n25, n26 =
-										math.floor(v48.X) - math.floor(120 * scale),
-										math.floor(v48.Y) - math.floor(76 * scale)
+										math.floor(v48.X) - math.floor(150 * scale),
+										math.floor(v48.Y) - math.floor(94 * scale)
 									if flag15 ~= true then
 										flag15 = true
 										n24.Visible = true
@@ -30272,9 +30541,9 @@ Config._buildQuickGui = function()
 				return
 			end
 			v23, v24 = arg3, active
-			frame.BackgroundColor3 = arg3 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10)
+			frame.BackgroundColor3 = arg3 and Color3.fromRGB(52, 132, 252) or Color3.fromRGB(8, 8, 10)
 			textButton.TextColor3 = arg3 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 255, 255)
-			uiStroke.Color = arg3 and Color3.fromRGB(255, 30, 40) or Color3.fromRGB(8, 8, 10)
+			uiStroke.Color = arg3 and Color3.fromRGB(52, 132, 252) or Color3.fromRGB(8, 8, 10)
 		end
 		local flag5, flag6, position, position2 = false, false
 		local n26, n27, v25 = 0, 0
