@@ -134,14 +134,10 @@ local function writefile_(path, data)
 		if type(fn) == "function" then
 			local ok = pcall(fn, path, data)
 			if ok then
-				local check = readfile_(path)
-				if check ~= nil then
-					return true
-				end
+				return true
 			end
 		end
 	end
-	warn("[VX7] writefile failed for " .. tostring(path))
 	return false
 end
 _G.__VX7_FS = {
@@ -303,8 +299,8 @@ Config = {
 	stealBarScale = 1,
 	stealBarStyle = "Compact",
 	buttonShape = "Square",
-	stealRadius = 20,
-	stealDuration = 1.3,
+	stealRadius = 65, -- Bubble default
+	stealDuration = 1.3, -- Bubble default
 	jumpPower = 50,
 	isStealing = false,
 	stealStartTime = nil,
@@ -1085,7 +1081,7 @@ local function fn19(arg)
 	end
 end
 local tbl17, ReplicatedStorage, plots, tbl18, tbl19, tbl20, tbl21, tbl22, tbl23 =
-	{ StealRadius = 20, StealDuration = 1.1 },
+	{ StealRadius = 65, StealDuration = 1.3 }, -- Bubble defaults
 	game:GetService("ReplicatedStorage"),
 	workspace:WaitForChild("Plots"),
 	{},
@@ -1124,11 +1120,11 @@ local tbl17, ReplicatedStorage, plots, tbl18, tbl19, tbl20, tbl21, tbl22, tbl23 
 	},
 	{
 		AUTO_STEAL_ENABLED = false,
-		HOLD_MIN = 1.3,
-		HOLD_MAX = 2.6,
-		ENTRY_DELAY = 0.3,
-		COOLDOWN = 0.05,
-		STEAL_RANGE = 9,
+		HOLD_MIN = 1.3, -- Bubble
+		HOLD_MAX = 2.6, -- Bubble
+		ENTRY_DELAY = 0.01, -- Bubble (was 0.3)
+		COOLDOWN = 0.05 -- Bubble,
+		STEAL_RANGE = 6, -- Bubble (was 9)
 		PRIME_RANGE = 80,
 	},
 	{},
@@ -1252,6 +1248,7 @@ local v14 = (function()
 		visualState = "IDLE",
 	}
 	Config.Core.Telemetry.AutoSteal = autoSteal
+	-- Auto Steal timings/range aligned to Bubble Hub (Radius 65, STEAL_RANGE 6, ENTRY_DELAY 0.01)
 	_G.StealBar = {
 		SetProgress = function(arg)
 			autoSteal.manualProgress = math.clamp(tonumber(arg) or 0, 0, 1)
@@ -2509,7 +2506,7 @@ local function fn23()
 	tbl25 = Config._currentThemePalette
 	local accent = tbl25 and tbl25.accent or (color(90, 140, 255))
 	local v18, flag4, ScreenGui =
-		color2(accent.R * 0.55, accent.G * 0.55, accent.B * 0.55), Config.stealBarStyle == "Compact", new("ScreenGui")
+		color2(accent.R * 0.55, accent.G * 0.55, accent.B * 0.55), false, new("ScreenGui")
 	ScreenGui.Name = "MiroStealBar"
 	ScreenGui.ResetOnSpawn = false
 	ScreenGui.DisplayOrder = 200
@@ -2528,7 +2525,8 @@ local function fn23()
 	v16 = ScreenGui
 	local Frame = new("Frame", ScreenGui)
 	Frame.Name = "StealProgressGui"
-	Frame.Size = flag4 and (udim22(372, 54)) or (udim22(440, 44))
+	Frame.Size = udim22(440, 50)
+	Frame:SetAttribute("VX7ModeBtn", true)
 	do
 		local saved = Config._savedStealBarPos
 		if type(saved) == "table" and (saved.sx or saved.ox or saved.sy or saved.oy) then
@@ -2538,8 +2536,8 @@ local function fn23()
 		end
 	end
 	Frame.AnchorPoint = Vector2.zero
-	Frame.BackgroundColor3 = color(22, 22, 26)
-	Frame.BackgroundTransparency = flag4 and 0.22 or 0.4
+	Frame.BackgroundColor3 = color(30, 30, 30)
+	Frame.BackgroundTransparency = 0
 	Frame.BorderSizePixel = 0
 	Frame.Active = true
 	Frame.Visible = true
@@ -2561,9 +2559,9 @@ local function fn23()
 		end
 	end
 	position = new("UIStroke", Frame)
-	position.Color = color(190, 190, 200)
-	position.Thickness = flag4 and 0.8 or 0.6
-	position.Transparency = 0.55
+	position.Color = color(6, 8, 8)
+	position.Thickness = 3
+	position.Transparency = 0
 	local ImageLabel = new("ImageLabel", Frame)
 	ImageLabel.Name = "StealBarBackground"
 	ImageLabel.Size = UDim2.fromScale(1, 1)
@@ -2599,32 +2597,37 @@ local function fn23()
 		end
 	end
 	Config._refreshStealBarBackground(Config._currentBackgroundAsset)
+	ImageLabel:Destroy()
+	Frame2:Destroy()
 	local TextLabel = new("TextLabel", Frame)
 	TextLabel.Name = "StealPercent"
-	TextLabel.Size = flag4 and (udim22(70, 22)) or (udim2(0, 46, 1, 0))
-	TextLabel.Position = flag4 and (udim22(14, 24)) or (udim22(10, 0))
+	TextLabel.Size = udim22(56, 50)
+	TextLabel.Position = udim22(232, 0)
 	TextLabel.BackgroundTransparency = 1
 	TextLabel.Text = "0%"
 	TextLabel.TextColor3 = color(255, 255, 255)
 	TextLabel.Font = gothamBold
-	TextLabel.TextSize = flag4 and 15 or 13
-	TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TextLabel.TextSize = 14
+	TextLabel.TextXAlignment = Enum.TextXAlignment.Right
 	TextLabel.TextYAlignment = Enum.TextYAlignment.Center
 	TextLabel.ZIndex = 305
 	tbl25 = new("TextLabel", Frame)
 	tbl25.Name = "StealStatus"
-	tbl25.Size = flag4 and (udim22(70, 16)) or (udim22(80, 44))
-	tbl25.Position = flag4 and (udim22(14, 7)) or (udim22(52, 0))
+	tbl25.Size = udim22(100, 50)
+	tbl25.Position = udim22(16, 0)
 	tbl25.BackgroundTransparency = 1
 	tbl25.Text = "STEAL"
-	tbl25.TextColor3 = flag4 and (color(205, 205, 214)) or (color(255, 255, 255))
-	tbl25.Font = gothamBold
-	tbl25.TextSize = flag4 and 8 or 14
+	tbl25.TextColor3 = color(255, 255, 255)
+	tbl25.Font = Enum.Font.GothamBlack
+	tbl25.TextSize = 15
+	tbl25.TextStrokeColor3 = color(0, 0, 0)
+	tbl25.TextStrokeTransparency = 0.45
 	tbl25.TextXAlignment = Enum.TextXAlignment.Left
 	tbl25.TextYAlignment = Enum.TextYAlignment.Center
 	tbl25.ZIndex = 304
 	position = new("Frame", Frame)
 	position.Name = "StealDivider"
+	position.Visible = false
 	position.Size = flag4 and (udim22(1, 34)) or (udim22(1, 22))
 	position.Position = flag4 and (udim22(88, 10)) or (udim2(0, 248, 0.5, -11))
 	position.BackgroundColor3 = color(200, 200, 210)
@@ -2633,6 +2636,7 @@ local function fn23()
 	position.ZIndex = 305
 	position = new("TextLabel", Frame)
 	position.Name = "StealFpsLabel"
+	position.Visible = false
 	position.Size = flag4 and (udim22(28, 18)) or (udim2(0, 28, 1, 0))
 	position.Position = flag4 and (udim22(104, 28)) or (udim22(256, 0))
 	position.BackgroundTransparency = 1
@@ -2645,6 +2649,7 @@ local function fn23()
 	position.ZIndex = 305
 	local TextLabel2 = new("TextLabel", Frame)
 	TextLabel2.Name = "StealFpsValue"
+	TextLabel2.Visible = false
 	TextLabel2.Size = flag4 and (udim22(42, 18)) or (udim2(0, 36, 1, 0))
 	TextLabel2.Position = flag4 and (udim22(134, 28)) or (udim22(282, 0))
 	TextLabel2.BackgroundTransparency = 1
@@ -2657,6 +2662,7 @@ local function fn23()
 	TextLabel2.ZIndex = 305
 	tbl25 = new("TextLabel", Frame)
 	tbl25.Name = "StealPingLabel"
+	tbl25.Visible = false
 	tbl25.Size = flag4 and (udim22(34, 18)) or (udim2(0, 32, 1, 0))
 	tbl25.Position = flag4 and (udim22(211, 28)) or (udim22(322, 0))
 	tbl25.BackgroundTransparency = 1
@@ -2669,42 +2675,42 @@ local function fn23()
 	tbl25.ZIndex = 305
 	local TextLabel3 = new("TextLabel", Frame)
 	TextLabel3.Name = "StealPingValue"
-	TextLabel3.Size = flag4 and (udim22(62, 18)) or (udim2(0, 54, 1, 0))
-	TextLabel3.Position = flag4 and (udim22(247, 28)) or (udim22(354, 0))
+	TextLabel3.Size = udim22(110, 50)
+	TextLabel3.Position = udim22(312, 0)
 	TextLabel3.BackgroundTransparency = 1
-	TextLabel3.Text = "0ms"
+	TextLabel3.Text = "PING:0"
 	TextLabel3.TextColor3 = color(255, 255, 255)
-	TextLabel3.Font = flag4 and Enum.Font.GothamMedium or gothamBold
-	TextLabel3.TextSize = flag4 and 10 or 12
+	TextLabel3.Font = gothamBold
+	TextLabel3.TextSize = 14
 	TextLabel3.TextXAlignment = Enum.TextXAlignment.Left
 	TextLabel3.TextYAlignment = Enum.TextYAlignment.Center
 	TextLabel3.ZIndex = 305
 	position = new("Frame", Frame)
 	position.Name = "VX7StealTrack"
-	position.Size = flag4 and (udim22(258, 15)) or (udim22(240, 32))
-	position.Position = flag4 and (udim22(101, 8)) or (udim2(0, 4, 0.5, -16))
-	position.BackgroundColor3 = color(40, 40, 45)
-	position.BackgroundTransparency = flag4 and 0.08 or 0.4
+	position.Size = udim22(292, 42)
+	position.Position = udim22(4, 4)
+	position.BackgroundColor3 = color(22, 22, 22)
+	position.BackgroundTransparency = 0
 	position.BorderSizePixel = 0
 	position.ClipsDescendants = true
 	position.ZIndex = 302
 	new("UICorner", position).CornerRadius = udim(1, 0)
+	local trackPadding = new("UIPadding", position)
+	trackPadding.PaddingLeft = udim(0, 3)
+	trackPadding.PaddingRight = udim(0, 3)
+	trackPadding.PaddingTop = udim(0, 3)
+	trackPadding.PaddingBottom = udim(0, 3)
 	local Frame3 = new("Frame", position)
 	Frame3.Name = "StealFill"
 	Frame3.Size = udim2(0, 0, 1, 0)
-	Frame3.BackgroundColor3 = accent
+	Frame3.BackgroundColor3 = color2(1, 1, 1)
 	Frame3.BorderSizePixel = 0
 	Frame3.ClipsDescendants = true
 	Frame3.ZIndex = 303
 	new("UICorner", Frame3).CornerRadius = udim(1, 0)
 	local UIGradient = new("UIGradient", Frame3)
-	UIGradient.Color = ColorSequence.new({
-		new2(0, v18),
-		new2(0.38, accent),
-		new2(0.68, accent:Lerp(color2(1, 1, 1), 0.34)),
-		new2(1, v18),
-	})
-	UIGradient.Rotation = -10
+	UIGradient.Color = ColorSequence.new(color(64, 146, 255), color(34, 100, 222))
+	UIGradient.Rotation = 0
 	Frame3.BackgroundTransparency = 0
 	udim22 = new("Frame", Frame3)
 	udim22.Name = "StealGloss"
@@ -2718,27 +2724,6 @@ local function fn23()
 	UIGradient2.Rotation = 90
 	UIGradient2.Transparency =
 		NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.18), NumberSequenceKeypoint.new(1, 1) })
-	task.spawn(function()
-		while v17 == n12 and Frame3.Parent do
-			local tween = TweenService:Create(
-				UIGradient,
-				TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{ Offset = Vector2.new(0.5, 0) }
-			)
-			tween:Play()
-			tween.Completed:Wait()
-			if v17 ~= n12 or not Frame3.Parent then
-				break
-			end
-			tween = TweenService:Create(
-				UIGradient,
-				TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{ Offset = Vector2.new(-0.5, 0) }
-			)
-			tween:Play()
-			tween.Completed:Wait()
-		end
-	end)
 	local flag5, position2, position3 = false
 	gothamBold = new("TextButton", Frame)
 	gothamBold.Size = udim2(1, 0, 1, 0)
@@ -2829,7 +2814,7 @@ local function fn23()
 				pcall(function()
 					n15 = math.floor(localPlayer:GetNetworkPing() * 1000 + 0.5)
 				end)
-				TextLabel3.Text = tostring(n15) .. "ms"
+				TextLabel3.Text = "PING:" .. tostring(n15)
 			end
 		end)
 	)
@@ -2874,15 +2859,10 @@ local function fn23()
 				currentThemePalette, flag6 =
 					color2(deltaTime.R * 0.55, deltaTime.G * 0.55, deltaTime.B * 0.55),
 					deltaTime:Lerp(color2(1, 1, 1), 0.34)
-				colorSequence = ColorSequence.new({
-					new2(0, currentThemePalette),
-					new2(0.38, deltaTime),
-					new2(0.68, flag6),
-					new2(1, currentThemePalette),
-				})
+				colorSequence = ColorSequence.new(color(64, 146, 255), color(34, 100, 222))
 				colorSequence2 = ColorSequence.new(color2(1, 1, 1), flag6)
 			end
-			Frame3.BackgroundColor3 = deltaTime
+			Frame3.BackgroundColor3 = color2(1, 1, 1)
 			Frame3.BackgroundTransparency = 0
 			if UIGradient.Color ~= colorSequence then
 				UIGradient.Color = colorSequence
@@ -3207,6 +3187,35 @@ local function fn29(arg)
 			end
 		end
 	end)
+end
+Config._makeLogoLabel = function(name)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.BorderSizePixel = 0
+	label.Active = false
+	label.Text = "SAWYER"
+	label.TextScaled = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.AnchorPoint = Vector2.new(0, 0.5)
+	label.TextColor3 = Color3.fromRGB(52, 132, 252)
+	label.TextStrokeColor3 = Color3.fromRGB(8, 36, 90)
+	label.TextStrokeTransparency = 0.15
+	label.Font = Enum.Font.GothamBlack
+	if Config._getSpicyFontFace then
+		local face = Config._getSpicyFontFace()
+		if face then
+			pcall(function()
+				label.FontFace = face
+			end)
+		end
+	end
+	label:SetAttribute("VX7LogoFont", true)
+	label:SetAttribute("VX7ModeBtn", true)
+	local constraint = Instance.new("UITextSizeConstraint", label)
+	constraint.MaxTextSize = 40
+	return label
 end
 Config._timerCardColors = {
 	headerTop = Color3.fromRGB(10, 40, 140),
@@ -3814,6 +3823,9 @@ Config._applyFontObject = function(arg)
 	if not (arg and (arg:IsA("TextLabel") or (arg:IsA("TextButton")) or (arg:IsA("TextBox")))) then
 		return
 	end
+	if arg:GetAttribute("VX7LogoFont") then
+		return
+	end
 	local font = Config._fontOriginals[arg]
 	if not font or (Config._fontIsAlternate(font)) then
 		font = arg.Font
@@ -4011,7 +4023,7 @@ local function fn31()
 		normalStealSpeed = Config.normalStealSpeed,
 		carryStealSpeed = Config.carryStealSpeed,
 		laggerStealSpeed = Config.laggerStealSpeed,
-		stealRadius = tbl17.StealRadius or 20,
+		stealRadius = tbl17.StealRadius or 65,
 		stealFreezePercent = Config.stealFreezePercent or 85,
 		infJump = Config.infJumpEnabled,
 		antiRagdoll = Config.antiRagdollEnabled,
@@ -4144,7 +4156,7 @@ local function fn33()
 		normalStealSpeed = Config.normalStealSpeed or 30,
 		laggerStealSpeed = Config.laggerStealSpeed or 10.1,
 		carryStealSpeed = Config.carryStealSpeed or 20,
-		stealRadius = tbl17.StealRadius or 20,
+		stealRadius = tbl17.StealRadius or 65,
 		stealFreezePercent = Config.stealFreezePercent or 85,
 		v3FillDuration = v3FillDuration or 0.1,
 		uiScale = Config.uiScale or 1,
@@ -4263,8 +4275,18 @@ local function fn33()
 		autoStealVersion = Config.autoStealVersion or "V1",
 		batAimbotVersion = Config.batAimbotVersion or "Normal",
 		batTpVersion = Config.batTpVersion or "V2",
-		batTpStuds = Config._getBatTpStuds(),
-		batTpStudsV1 = Config._getBatTpStuds("V1"),
+		batTpStuds = (function()
+			local ok, v = pcall(function()
+				return Config._getBatTpStuds and Config._getBatTpStuds() or Config.batTpStuds or 8
+			end)
+			return ok and tonumber(v) or 8
+		end)(),
+		batTpStudsV1 = (function()
+			local ok, v = pcall(function()
+				return Config._getBatTpStuds and Config._getBatTpStuds("V1") or Config.batTpStudsV1 or 8
+			end)
+			return ok and tonumber(v) or 8
+		end)(),
 		smartBatTpDistance = Config.smartBatTpDistance or 9,
 		smartBatTpSpeed = Config.smartBatTpSpeed or 42,
 		purpleSkyEnabled = Config.purpleSkyEnabled or false,
@@ -4277,7 +4299,7 @@ local function fn33()
 		buttonShape = Config.buttonShape or "Square",
 		openPopups = Config._openPopups,
 		activeFloats = tbl5,
-		mainBgIndex = n13,
+		mainBgIndex = (type(n13) == "number" and n13) or 1,
 		bgMode = Config.bgMode or "image",
 	}
 	tbl32.binds = {
@@ -4350,21 +4372,40 @@ local function fn33()
 	local ok, result = pcall(function()
 		return HttpService:JSONEncode(tbl32)
 	end)
-	if ok and result then
+	local function _writeConfigJson(payload)
+		if type(payload) ~= "string" or payload == "" then
+			return false
+		end
+		local a = writefile_("sawyerduels.json", payload)
 		pcall(function()
-			writefile_("sawyerduels.json", result)
+			writefile_("vx7/sawyerduels.json", payload)
 		end)
+		return a == true
+	end
+	if ok and result then
+		if not _writeConfigJson(result) then
+			-- strip optional fields and retry
+			tbl32.toggleKeybinds = nil
+			tbl32.activeFloats = {}
+			tbl32.openPopups = {}
+			tbl32.binds = nil
+			local ok2, result2 = pcall(function()
+				return HttpService:JSONEncode(tbl32)
+			end)
+			if ok2 and result2 then
+				_writeConfigJson(result2)
+			end
+		end
 	else
 		tbl32.toggleKeybinds = nil
 		tbl32.activeFloats = {}
 		tbl32.openPopups = {}
+		tbl32.binds = nil
 		local ok2, result2 = pcall(function()
 			return HttpService:JSONEncode(tbl32)
 		end)
 		if ok2 and result2 then
-			pcall(function()
-				writefile_("sawyerduels.json", result2)
-			end)
+			_writeConfigJson(result2)
 		end
 	end
 	local v23 = fn32(tbl30)
@@ -4385,19 +4426,21 @@ local function fn34()
 		return
 	end
 	flag4 = true
-	task.delay(0.5, function()
+	task.delay(0.35, function()
 		flag4 = false
-		fn33()
+		pcall(fn33)
 	end)
 end
 local function fn35()
 	flag4 = false
-	fn33()
+	pcall(fn33)
 end
 -- Alias used by some feature toggles (anti-bat, outfits, etc.)
 scheduleSaveConfig = fn34
 _G.scheduleSaveConfig = fn34
 Config.scheduleSaveConfig = fn34
+_G.__SawyerForceSave = fn35
+Config.forceSaveConfig = fn35
 local tbl32, tbl33 =
 	{
 		[Enum.KeyCode.W] = true,
@@ -4623,16 +4666,38 @@ local function fn38(arg)
 	return nil, nil
 end
 local function fn39()
-	if not isfile_("sawyerduels.json") then
-		return true
-	end
-	local data = tbl[1][6][tbl[1][3]]
-	local v23 = data
-	tbl[1][6][tbl[1][3]] = nil
+	local data = nil
+	local v23 = nil
+	-- Prefer in-memory early config if present
+	pcall(function()
+		if type(tbl) == "table" and type(tbl[1]) == "table" and type(tbl[1][6]) == "table" then
+			local slot = tbl[1][6][tbl[1][3]]
+			if type(slot) == "table" then
+				v23 = slot
+				tbl[1][6][tbl[1][3]] = nil
+			end
+		end
+	end)
 	if type(v23) ~= "table" then
-		local ok, result = pcall(readfile_, "sawyerduels.json")
-		if not ok or type(result) ~= "string" or result == "" then
-			return false
+		local paths = { "sawyerduels.json", "vx7/sawyerduels.json", "vx7/Vx7Config.json" }
+		local result = nil
+		for _, path in ipairs(paths) do
+			local ok, content = pcall(readfile_, path)
+			if ok and type(content) == "string" and #content > 2 then
+				result = content
+				break
+			end
+			-- isfile can lie on some executors; still try raw readfile
+			if type(readfile) == "function" then
+				ok, content = pcall(readfile, path)
+				if ok and type(content) == "string" and #content > 2 then
+					result = content
+					break
+				end
+			end
+		end
+		if type(result) ~= "string" or result == "" then
+			return true -- no config yet, first run
 		end
 		local decodeOk = pcall(function()
 			data = HttpService:JSONDecode(result)
@@ -5093,7 +5158,7 @@ local function fn39()
 		Config.purpleSkyEnabled = v23.purpleSkyEnabled
 	end
 	if v23.skyMode ~= nil then
-		Config.skyMode = v23.skyMode
+		Config.skyMode = (v23.skyMode == "VX7" or v23.skyMode == "Tech") and "Cyber" or v23.skyMode
 	end
 	if v23.dropType ~= nil then
 		Config.dropType = v23.dropType
@@ -10780,18 +10845,10 @@ tbl31 = {
 		uiGradient2.ZIndex = 12
 		uiGradient2 = Instance.new("Frame", uiGradient)
 		;(function(topBar)
-			local img = Instance.new("ImageLabel")
-			img.Name = "HeaderBrandImage"
-			img.Image = "rbxassetid://139521916667670"
-			img.ScaleType = Enum.ScaleType.Fit
-			img.BackgroundTransparency = 1
-			img.BorderSizePixel = 0
-			img.Active = false
-			img.AnchorPoint = Vector2.new(0, 0.5)
+			local img = Config._makeLogoLabel("HeaderBrandImage")
 			img.Position = UDim2.new(0, 9, 0.5, 0)
-			img.Size = UDim2.new(0, 100, 1, -6)
+			img.Size = UDim2.new(0, 120, 1, -10)
 			img.ZIndex = 13
-			img:SetAttribute("VX7ModeBtn", true)
 			img.Parent = topBar
 		end)(uiGradient)
 		local textButton2 = Instance.new("TextButton", uiGradient)
@@ -10866,7 +10923,7 @@ tbl31 = {
 		minimizedCircle.Size = UDim2.fromOffset(22, 22)
 		minimizedCircle.AnchorPoint = Vector2.new(0, 0.5)
 		minimizedCircle.Position = UDim2.new(0, 14, 0.5, 0)
-		minimizedCircle.BackgroundColor3 = Color3.fromRGB(255, 50, 60)
+		minimizedCircle.BackgroundColor3 = Color3.fromRGB(52, 132, 252)
 		minimizedCircle.BackgroundTransparency = 0
 		minimizedCircle.BorderSizePixel = 0
 		minimizedCircle.ZIndex = 22
@@ -10886,18 +10943,10 @@ tbl31 = {
 		textButton.TextStrokeTransparency = 0.4
 		textButton.ZIndex = 22
 		;(function(minFrame)
-			local img = Instance.new("ImageLabel")
-			img.Name = "MinimizedBrandImage"
-			img.Image = "rbxassetid://139521916667670"
-			img.ScaleType = Enum.ScaleType.Fit
-			img.BackgroundTransparency = 1
-			img.BorderSizePixel = 0
-			img.Active = false
-			img.AnchorPoint = Vector2.new(0, 0.5)
+			local img = Config._makeLogoLabel("MinimizedBrandImage")
 			img.Position = UDim2.new(0, 44, 0.5, 0)
-			img.Size = UDim2.new(1, -54, 0, 34)
+			img.Size = UDim2.new(1, -54, 0, 30)
 			img.ZIndex = 23
-			img:SetAttribute("VX7ModeBtn", true)
 			img.Parent = minFrame
 		end)(frame4)
 		textButton = Instance.new("TextLabel", frame4)
@@ -16767,52 +16816,204 @@ tbl31 = {
 				end
 				local tbl55 = {
 					Night = {
-						clock = 22,
-						brightness = 2,
-						ambient = { 110, 100, 130 },
-						outAmb = { 120, 110, 140 },
-						sky = { stars = 4000, moon = 18, sun = 0, moonTex = true },
-						atm = {
-							dens = 0.45,
-							color = { 120, 60, 180 },
-							decay = { 60, 20, 100 },
-							glare = 0.5,
-							haze = 1.2,
-						},
+						clock = 22,  brightness = 2,   ambient = {110,100,130}, outAmb = {120,110,140}, sky = {stars = 4000,  moon = 18, sun = 0,  moonTex = true}, atm = {dens = 0.45, color = {120,60,180},   decay = {60,20,100},   glare = 0.5, haze = 1.2}
+					},
+					Aurora = {
+						clock = 14,  brightness = 2.2, ambient = {140,130,150}, outAmb = {150,140,160},                                                    atm = {dens = 0.35, color = {220,140,200},  decay = {200,120,160}, glare = 1.2, haze = 1.6}, clouds = {cover = 0.5,  dens = 0.5,  color = {240,230,245}}
 					},
 					Sunset = {
-						clock = 17.2,
-						brightness = 2.5,
-						ambient = { 170, 120, 100 },
-						outAmb = { 180, 130, 110 },
-						sky = { stars = 0, sun = 25, moon = 0 },
-						atm = { dens = 0.5, color = { 255, 130, 60 }, decay = { 255, 80, 30 }, glare = 2, haze = 2.5 },
-						clouds = { cover = 0.55, dens = 0.55, color = { 255, 200, 140 } },
+						clock = 17.2,brightness = 2.5, ambient = {170,120,100}, outAmb = {180,130,110}, sky = {stars = 0,    sun = 25,  moon = 0},                 atm = {dens = 0.5,  color = {255,130,60},   decay = {255,80,30},   glare = 2,   haze = 2.5}, clouds = {cover = 0.55, dens = 0.55, color = {255,200,140}}
 					},
-					Tech = {
-						clock = 21,
-						brightness = 2.2,
-						ambient = { 90, 130, 170 },
-						outAmb = { 100, 140, 180 },
-						sky = { stars = 2000, moon = 12 },
-						atm = { dens = 0.4, color = { 0, 200, 255 }, decay = { 150, 0, 255 }, glare = 2, haze = 2 },
-						clouds = { cover = 0.4, dens = 0.6, color = { 100, 200, 255 } },
+					Galaxy = {
+						clock = 0,   brightness = 1.5, ambient = {70,60,100},   outAmb = {80,70,110},   sky = {stars = 10000,moon = 30, sun = 0},                  atm = {dens = 0.15, color = {40,20,80},     decay = {20,10,50},    glare = 0.3, haze = 0.5}
 					},
-					VX7 = {
-						clock = 23,
-						brightness = 2.2,
-						ambient = { 120, 60, 110 },
-						outAmb = { 140, 70, 120 },
-						sky = { stars = 5000, moon = 22, sun = 0, moonTex = true },
-						atm = {
-							dens = 0.5,
-							color = { 255, 80, 180 },
-							decay = { 140, 30, 100 },
-							glare = 0.7,
-							haze = 1.4,
-						},
-						clouds = { cover = 0.3, dens = 0.5, color = { 180, 90, 150 } },
+					Cyber = {
+						clock = 21,  brightness = 2.2, ambient = {90,130,170},  outAmb = {100,140,180}, sky = {stars = 2000, moon = 12},                         atm = {dens = 0.4,  color = {0,200,255},    decay = {150,0,255},   glare = 2,   haze = 2},   clouds = {cover = 0.4,  dens = 0.6,  color = {100,200,255}}
 					},
+					Sakura = {
+						clock = 11,  brightness = 3.5, ambient = {170,150,160}, outAmb = {180,160,170}, sky = {sun = 8},                                       atm = {dens = 0.3,  color = {255,200,220},  decay = {255,170,200}, glare = 1,   haze = 1.5}, clouds = {cover = 0.6,  dens = 0.4,  color = {255,250,252}}
+					},
+					["Pink Night"] = {
+						clock = 23,  brightness = 2.2, ambient = {120,60,110},  outAmb = {140,70,120},  sky = {stars = 5000, moon = 22, sun = 0,  moonTex = true},   atm = {dens = 0.5,  color = {255,80,180},   decay = {140,30,100},  glare = 0.7, haze = 1.4}, clouds = {cover = 0.3,  dens = 0.5,  color = {180,90,150}}
+					},
+					["Blood Moon"] = {
+						clock = 22.5,brightness = 1.4, ambient = {120,50,50},   outAmb = {130,60,60},   sky = {stars = 1500, moon = 28, sun = 0,  moonTex = true},   atm = {dens = 0.5,  color = {180,50,50},    decay = {100,30,30},   glare = 0.9, haze = 1.5}, clouds = {cover = 0.4,  dens = 0.55, color = {110,40,40}}
+					},
+					["Emerald Dawn"] = {
+						clock = 6.5, brightness = 2.8, ambient = {130,170,140}, outAmb = {140,180,150}, sky = {sun = 18,     moon = 0,  stars = 0},                atm = {dens = 0.4,  color = {80,200,140},   decay = {40,150,90},   glare = 1.8, haze = 2.2}, clouds = {cover = 0.5,  dens = 0.5,  color = {200,255,220}}
+					},
+					Volcanic = {
+						clock = 19,  brightness = 1.6, ambient = {170,90,50},   outAmb = {180,100,60},  sky = {stars = 200,  sun = 12,  moon = 0},                 atm = {dens = 0.55, color = {200,80,30},    decay = {150,50,20},   glare = 1.5, haze = 2.0}, clouds = {cover = 0.6,  dens = 0.7,  color = {120,50,30}}
+					},
+					Arctic = {
+						clock = 9,   brightness = 3.2, ambient = {200,220,235}, outAmb = {210,230,245}, sky = {sun = 10,     stars = 0, moon = 0},                 atm = {dens = 0.3,  color = {180,220,255},  decay = {140,200,240}, glare = 1.5, haze = 1.8}, clouds = {cover = 0.7,  dens = 0.6,  color = {250,253,255}}
+					},
+					["Midnight Ocean"] = {
+						clock = 1.5, brightness = 1.7, ambient = {60,90,130},   outAmb = {70,100,140},  sky = {stars = 6000, moon = 24, sun = 0,  moonTex = true},   atm = {dens = 0.5,  color = {20,60,140},    decay = {10,30,90},    glare = 0.6, haze = 1.5}
+					},
+					Vaporwave = {
+						clock = 19.5,brightness = 2.4, ambient = {180,120,200}, outAmb = {190,130,210}, sky = {stars = 1000, moon = 14},                         atm = {dens = 0.45, color = {255,100,220},  decay = {120,60,255},  glare = 2.2, haze = 2.4}, clouds = {cover = 0.5,  dens = 0.55, color = {200,150,255}}
+					},
+					Toxic = {
+						clock = 13,  brightness = 2.2, ambient = {145,170,110}, outAmb = {155,180,120},                                                    atm = {dens = 0.4,  color = {130,200,90},   decay = {90,160,60},   glare = 1.2, haze = 1.8}, clouds = {cover = 0.55, dens = 0.55, color = {190,230,150}}
+					},
+					["Solar Eclipse"] = {
+						clock = 12,  brightness = 0.9, ambient = {50,40,60},    outAmb = {60,50,70},    sky = {stars = 3500, sun = 22,  moon = 0},                 atm = {dens = 0.5,  color = {255,140,40},   decay = {30,20,40},    glare = 2.8, haze = 1.8}
+					},
+					Hellscape = {
+						clock = 18,  brightness = 1.4, ambient = {170,70,40},   outAmb = {180,80,50},   sky = {stars = 100,  sun = 30,  moon = 0},                 atm = {dens = 0.5,  color = {200,50,20},    decay = {110,30,10},   glare = 1.8, haze = 2.5}, clouds = {cover = 0.8,  dens = 0.8,  color = {90,30,20}}
+					},
+					Heaven = {
+						clock = 12,  brightness = 4,   ambient = {240,235,210}, outAmb = {250,245,220}, sky = {sun = 16,     moon = 0,  stars = 0},                atm = {dens = 0.25, color = {255,250,220},  decay = {255,240,200}, glare = 3,   haze = 1.5}, clouds = {cover = 0.85, dens = 0.5,  color = {255,255,255}}
+					},
+					Storm = {
+						clock = 15,  brightness = 1.4, ambient = {90,90,110},   outAmb = {100,100,120}, sky = {stars = 0,    sun = 6,   moon = 0},                 atm = {dens = 0.65, color = {80,90,120},    decay = {40,50,80},    glare = 0.5, haze = 3},   clouds = {cover = 0.95, dens = 0.95, color = {60,65,80}}
+					},
+					Sunrise = {
+						clock = 6.2, brightness = 2.8, ambient = {220,180,130}, outAmb = {230,190,140}, sky = {sun = 22,     stars = 0, moon = 0},                 atm = {dens = 0.45, color = {255,180,100},  decay = {255,140,80},  glare = 2.4, haze = 2.2}, clouds = {cover = 0.4,  dens = 0.4,  color = {255,220,180}}
+					},
+					["Deep Space"] = {
+						clock = 0,   brightness = 1,   ambient = {30,25,50},    outAmb = {40,35,60},    sky = {stars = 15000,moon = 0,  sun = 0},                  atm = {dens = 0.08, color = {15,5,40},      decay = {5,0,20},      glare = 0.2, haze = 0.3}
+					},
+					["Lavender Dream"] = {
+						clock = 18.5,brightness = 2.6, ambient = {180,160,220}, outAmb = {190,170,230}, sky = {stars = 800,  moon = 16, sun = 0},                  atm = {dens = 0.4,  color = {200,160,255},  decay = {160,120,220}, glare = 1.4, haze = 1.8}, clouds = {cover = 0.55, dens = 0.5,  color = {220,200,255}}
+					},
+					Inferno = {
+						clock = 17.5,brightness = 1.8, ambient = {200,100,50},  outAmb = {210,110,60},  sky = {sun = 26,     moon = 0,  stars = 0},                atm = {dens = 0.5,  color = {220,100,40},   decay = {180,70,20},   glare = 2.0, haze = 2.4}, clouds = {cover = 0.6,  dens = 0.6,  color = {180,90,50}}
+					},
+					["Mint Sky"] = {
+						clock = 10,  brightness = 3.2, ambient = {180,230,210}, outAmb = {190,240,220}, sky = {sun = 10},                                      atm = {dens = 0.32, color = {150,255,210},  decay = {100,220,180}, glare = 1.6, haze = 1.6}, clouds = {cover = 0.55, dens = 0.45, color = {240,255,250}}
+					},
+					["Clear Sky"] = {
+						clock = 13.5,brightness = 3,   ambient = {180,200,220}, outAmb = {190,210,230}, sky = {sun = 12,     stars = 0, moon = 0},                 atm = {dens = 0.28, color = {140,200,255},  decay = {90,160,230},  glare = 1.4, haze = 1.4}, clouds = {cover = 0.25, dens = 0.35, color = {255,255,255}}
+					},
+					["Golden Hour"] = {
+						clock = 16.6,brightness = 2.2, ambient = {195,168,132}, outAmb = {205,178,142}, sky = {sun = 15,     stars = 0, moon = 0},                 atm = {dens = 0.36, color = {240,195,140},  decay = {205,150,95},  glare = 1.3, haze = 1.6}, clouds = {cover = 0.4,  dens = 0.4,  color = {245,225,200}}
+					},
+					Moonlight = {
+						clock = 23.5,brightness = 1.8, ambient = {140,150,175}, outAmb = {150,160,185}, sky = {stars = 7000, moon = 26, sun = 0,  moonTex = true},   atm = {dens = 0.4,  color = {170,190,225},  decay = {60,75,110},   glare = 0.8, haze = 1.4}, clouds = {cover = 0.35, dens = 0.45, color = {150,165,195}}
+					},
+					["Cotton Candy"] = {
+						clock = 18,  brightness = 3,   ambient = {225,190,225}, outAmb = {235,200,235}, sky = {sun = 10,     stars = 0, moon = 0},                 atm = {dens = 0.35, color = {255,180,225},  decay = {160,200,255}, glare = 1.6, haze = 1.8}, clouds = {cover = 0.6,  dens = 0.45, color = {255,230,245}}
+					},
+					Monochrome = {
+						clock = 13,  brightness = 1.9, ambient = {148,148,148}, outAmb = {158,158,158}, sky = {sun = 0,      stars = 0, moon = 0},                 atm = {dens = 0.5,  color = {125,125,125},  decay = {178,178,178}, glare = 0,   haze = 2.4}, clouds = {cover = 0.85, dens = 0.75, color = {142,142,142}}
+					},
+					Rainbow = {
+						clock = 17.4,brightness = 2.6, ambient = {200,185,215}, outAmb = {210,195,225}, sky = {sun = 18,     stars = 0, moon = 0},                 atm = {dens = 0.3,  color = {130,70,255},   decay = {255,120,50},  glare = 1.8, haze = 3},   clouds = {cover = 0.35, dens = 0.4,  color = {255,235,250}}, rainbow = true
+					},
+					Ultraviolet = {
+						clock = 12,  brightness = 2.2, ambient = {150,130,195}, outAmb = {160,140,205}, sky = {sun = 10,     stars = 0, moon = 0},                 atm = {dens = 0.5,  color = {115,35,205},   decay = {170,120,235}, glare = 1.4, haze = 2.3}, clouds = {cover = 0.35, dens = 0.45, color = {205,170,250}}
+					},
+					["Blue Hour"] = {
+						clock = 19.6,brightness = 1.9, ambient = {95,115,150},  outAmb = {105,125,160}, sky = {stars = 600,  sun = 0,   moon = 0},                 atm = {dens = 0.45, color = {70,110,175},   decay = {150,170,205}, glare = 0.8, haze = 1.8}, clouds = {cover = 0.3,  dens = 0.4,  color = {120,140,175}}
+					},
+					Nebula = {
+						clock = 0.5, brightness = 1.6, ambient = {95,70,120},   outAmb = {105,80,130},  sky = {stars = 12000,moon = 10, sun = 0},                  atm = {dens = 0.3,  color = {190,60,200},   decay = {40,170,190},  glare = 1.6, haze = 1.2}, clouds = {cover = 0.45, dens = 0.65, color = {150,70,200}}
+					},
+					Thunderhead = {
+						clock = 16,  brightness = 1.5, ambient = {105,110,140}, outAmb = {115,120,150}, sky = {sun = 5,      stars = 0, moon = 0},                 atm = {dens = 0.7,  color = {150,165,255},  decay = {45,50,75},    glare = 3,   haze = 2.8}, clouds = {cover = 0.95, dens = 0.9,  color = {70,75,100}}
+					},
+					["Fuchsia Dawn"] = {
+						clock = 6.4, brightness = 2.2, ambient = {212,145,175}, outAmb = {222,155,185}, sky = {sun = 12,     stars = 0, moon = 0},                 atm = {dens = 0.5,  color = {240,55,155},   decay = {215,110,160}, glare = 1.3, haze = 2.3}, clouds = {cover = 0.45, dens = 0.5,  color = {255,175,205}}
+					},
+					["Ice Cavern"] = {
+						clock = 5,   brightness = 1.5, ambient = {130,175,200}, outAmb = {140,185,210}, sky = {stars = 1200, moon = 8,  sun = 0},                  atm = {dens = 0.55, color = {110,200,230},  decay = {200,235,250}, glare = 0.9, haze = 2.6}, clouds = {cover = 0.6,  dens = 0.6,  color = {190,225,240}}
+					},
+					["Crimson Dusk"] = {
+						clock = 18.8,brightness = 1.9, ambient = {165,80,90},   outAmb = {175,90,100},  sky = {sun = 9,      stars = 300, moon = 0},               atm = {dens = 0.55, color = {190,40,70},    decay = {90,25,80},    glare = 1.6, haze = 2.2}, clouds = {cover = 0.55, dens = 0.6,  color = {150,55,75}}
+					},
+					["Neon Rain"] = {
+						clock = 21.5,brightness = 1.6, ambient = {80,95,125},   outAmb = {90,105,135},  sky = {stars = 300,  moon = 0,  sun = 0},                  atm = {dens = 0.6,  color = {0,230,210},    decay = {225,40,175},  glare = 2.6, haze = 2.8}, clouds = {cover = 0.9,  dens = 0.85, color = {55,65,90}}
+					},
+					["Copper Sky"] = {
+						clock = 15.5,brightness = 2,   ambient = {185,120,75},  outAmb = {195,130,85},  sky = {sun = 13,     stars = 0, moon = 0},                 atm = {dens = 0.5,  color = {200,110,55},   decay = {150,80,45},   glare = 1.5, haze = 2.6}, clouds = {cover = 0.65, dens = 0.6,  color = {190,140,100}}
+					},
+					["Pearl Rose"] = {
+						clock = 9.5, brightness = 3.4, ambient = {240,220,228}, outAmb = {248,228,236}, sky = {sun = 0,      stars = 0, moon = 0},                 atm = {dens = 0.38, color = {255,205,220},  decay = {250,240,242}, glare = 0.9, haze = 2},   clouds = {cover = 0.9,  dens = 0.55, color = {255,245,250}}
+					},
+					["Red Giant"] = {
+						clock = 17.6,brightness = 1.5, ambient = {150,75,60},   outAmb = {160,85,70},   sky = {sun = 75,     stars = 400, moon = 0},               atm = {dens = 0.55, color = {150,40,30},    decay = {235,120,70},  glare = 2.2, haze = 2.6}, clouds = {cover = 0.35, dens = 0.5,  color = {150,75,55}}
+					},
+					Moonfall = {
+						clock = 1,   brightness = 1.5, ambient = {125,140,175}, outAmb = {135,150,185}, sky = {stars = 9000, moon = 75, sun = 0,  moonTex = true},   atm = {dens = 0.45, color = {90,115,165},   decay = {185,200,230}, glare = 1.1, haze = 1.8}, clouds = {cover = 0.3,  dens = 0.45, color = {150,165,200}}
+					},
+					Ashfall = {
+						clock = 15,  brightness = 1.2, ambient = {92,86,80},    outAmb = {104,98,92},   sky = {sun = 4,      stars = 0, moon = 0},   noAtm = true, shadows = false, exposure = -0.35,
+                        fog = {10, 260, {104, 97, 90}}, clouds = {cover = 0.9,  dens = 0.85, color = {86,80,74}}
+					},
+					Marshlight = {
+						clock = 6.8, brightness = 1.6, ambient = {104,132,104}, outAmb = {116,144,116}, sky = {sun = 8,      stars = 0, moon = 0},   noAtm = true, envD = 0.8,
+                        fog = {15, 200, {88, 140, 98}},  clouds = {cover = 0.75, dens = 0.7,  color = {120,150,125}}
+					},
+					Abyss = {
+						clock = 12,  brightness = 1.4, ambient = {30,80,92},    outAmb = {36,92,104},   sky = {sun = 3,      stars = 0, moon = 0},   noAtm = true, shadows = false, exposure = -0.4, envD = 0.5, envS = 0.2,
+                        fog = {0, 90, {12, 62, 74}}
+					},
+					Timelapse = {
+						clock = 5,   brightness = 2.4, ambient = {170,160,165}, outAmb = {180,170,175}, sky = {sun = 16,     stars = 2500, moon = 14, moonTex = true}, drift = 1.875,
+                        atm = {dens = 0.35, color = {190,150,190},  decay = {210,140,110}, glare = 1.6, haze = 1.8}, clouds = {cover = 0.45, dens = 0.5,  color = {235,225,235}}
+					},
+					Lightning = {
+						clock = 19.2,brightness = 1.6, ambient = {95,100,125},  outAmb = {105,110,135}, sky = {sun = 0,      stars = 0, moon = 0},
+                        flash = {peak = 3.4, gapMin = 2.2, gapMax = 6.5, bursts = 3},
+                        atm = {dens = 0.68, color = {160,175,255},  decay = {40,44,66},    glare = 0,   haze = 2.8}, clouds = {cover = 0.95, dens = 0.92, color = {62,66,88}}
+					},
+					Pulsar = {
+						clock = 0,   brightness = 1.8, ambient = {70,90,150},   outAmb = {80,100,160},  sky = {stars = 11000,moon = 0,  sun = 0},
+                        pulse = {min = 0.6, max = 4.2, period = 4},
+                        atm = {dens = 0.25, color = {60,100,235},   decay = {200,220,255}, glare = 2,   haze = 1}
+					},
+					Ionosphere = {
+						clock = 1.2, brightness = 1.7, ambient = {100,155,110}, outAmb = {110,165,120}, sky = {stars = 8000, moon = 8,  sun = 0},
+                        atm = {dens = 0.42, color = {60,235,140},   decay = {18,85,45},    glare = 1.8, haze = 1.5}
+					},
+					["Midnight Sun"] = {
+						clock = 0,   brightness = 2.6, ambient = {215,185,140}, outAmb = {225,195,150}, sky = {sun = 20,     stars = 0, moon = 0},   lat = 89,
+                        atm = {dens = 0.42, color = {255,190,110},  decay = {235,150,90},  glare = 2.2, haze = 2.2}, clouds = {cover = 0.4,  dens = 0.45, color = {255,225,190}}
+					},
+					["Polar Night"] = {
+						clock = 12,  brightness = 1.3, ambient = {62,80,120},   outAmb = {72,90,130},   sky = {stars = 2200, sun = 10,  moon = 6},   lat = -88, exposure = -0.25,
+                        atm = {dens = 0.5,  color = {45,70,130},    decay = {120,150,200}, glare = 0.6, haze = 2.2}, clouds = {cover = 0.55, dens = 0.5,  color = {80,100,140}}
+					},
+					Infrared = {
+						clock = 13,  brightness = 2.2, ambient = {120,60,70},   outAmb = {130,70,80},   sky = {sun = 10,     stars = 0, moon = 0},
+                        shiftTop = {120, 0, 0}, shiftBot = {0, 20, 90}, envS = 0.3,
+                        atm = {dens = 0.3,  color = {90,20,40},     decay = {200,60,60},   glare = 1.4, haze = 1.4}
+					},
+					Sepia = {
+						clock = 14,  brightness = 2,   ambient = {160,140,110}, outAmb = {170,150,120}, sky = {sun = 9,      stars = 0, moon = 0},
+                        shiftTop = {90, 55, 10}, shiftBot = {35, 20, 5}, envD = 0.45, envS = 0.1,
+                        atm = {dens = 0.45, color = {185,150,100},  decay = {150,115,70},  glare = 1,   haze = 2.4}, clouds = {cover = 0.5,  dens = 0.5,  color = {205,185,150}}
+					},
+					Chrome = {
+						clock = 12,  brightness = 2.8, ambient = {150,160,175}, outAmb = {160,170,185}, sky = {sun = 14,     stars = 0, moon = 0},
+                        envD = 0.15, envS = 3, exposure = 0.2,
+                        atm = {dens = 0.3,  color = {175,190,210},  decay = {120,135,160}, glare = 2.6, haze = 1.2}
+					},
+					Supernova = {
+						clock = 12,  brightness = 4.5, ambient = {255,245,225}, outAmb = {255,250,235}, sky = {sun = 130,    stars = 0, moon = 0},   exposure = 0.9,
+                        atm = {dens = 0.2,  color = {255,250,235},  decay = {255,210,150}, glare = 5,   haze = 1.6}
+					},
+					Mars = {
+						clock = 11,  brightness = 1.9, ambient = {190,145,110}, outAmb = {200,155,120}, sky = {sun = 7,      stars = 0, moon = 0},   lat = 2, envS = 0.2,
+                        shiftTop = {70, 30, 0},
+                        atm = {dens = 0.38, color = {205,150,105},  decay = {175,120,80},  glare = 1.1, haze = 2}
+					},
+					Titan = {
+						clock = 12,  brightness = 0.9, ambient = {150,100,45},  outAmb = {160,110,55},  sky = {sun = 0,      stars = 0, moon = 0},   noAtm = true, shadows = false, exposure = -0.15, envD = 1.3, envS = 0,
+                        fog = {0, 150, {168, 108, 38}}
+					},
+					Dreamcore = {
+						clock = 13,  brightness = 2.6, ambient = {215,200,240}, outAmb = {225,210,250}, sky = {sun = 0,      stars = 0, moon = 0},   shadows = false, envD = 1.8, envS = 0,
+                        shiftTop = {60, 30, 80}, exposure = 0.3,
+                        atm = {dens = 0.3,  color = {215,185,255},  decay = {235,215,255}, glare = 0.6, haze = 2.6}, clouds = {cover = 0.7,  dens = 0.35, color = {250,240,255}}
+					},
+					["Ember Night"] = {
+						clock = 23,  brightness = 1.2, ambient = {80,45,30},    outAmb = {92,52,34},    sky = {stars = 2600, moon = 0,  sun = 0},
+                        shiftBot = {120, 45, 0}, exposure = -0.2,
+                        atm = {dens = 0.55, color = {25,18,22},     decay = {225,95,35},   glare = 1.8, haze = 2.4}, clouds = {cover = 0.5,  dens = 0.6,  color = {70,40,30}}
+					}
 				}
 				local function fn88(arg)
 					if tbl54[arg] then
@@ -16893,12 +17094,10 @@ tbl31 = {
 				textLabel2.TextSize = 12
 				textLabel2.TextXAlignment = Enum.TextXAlignment.Left
 				local tbl56, tbl57, tbl58 =
-					{ "Night", "Sunset", "Tech", "VX7" },
-					{ "Cyber", "Sakura", "Moonlight", "Heaven", "Lavender Dream" },
+					{ "Night", "Aurora", "Sunset", "Galaxy", "Cyber", "Sakura", "Pink Night", "Blood Moon", "Emerald Dawn", "Volcanic", "Arctic", "Midnight Ocean", "Vaporwave", "Toxic", "Solar Eclipse", "Hellscape", "Heaven", "Storm", "Sunrise", "Deep Space", "Lavender Dream", "Inferno", "Mint Sky", "Clear Sky", "Golden Hour", "Moonlight", "Cotton Candy", "Monochrome", "Rainbow", "Ultraviolet", "Blue Hour", "Nebula", "Thunderhead", "Fuchsia Dawn", "Ice Cavern", "Crimson Dusk", "Neon Rain", "Copper Sky", "Pearl Rose", "Red Giant", "Moonfall", "Ashfall", "Marshlight", "Abyss", "Timelapse", "Lightning", "Pulsar", "Ionosphere", "Midnight Sun", "Polar Night", "Infrared", "Sepia", "Chrome", "Supernova", "Mars", "Titan", "Dreamcore", "Ember Night" },
+					{}, -- function-only skies merged into main Ambitious list (no VX7/Tech)
 					{}
-				for i, v46 in ipairs(tbl57) do
-					table.insert(tbl58, v46)
-				end
+				-- Build selector from Ambitious data presets only (VX7/Tech removed)
 				for i, v46 in ipairs(tbl56) do
 					table.insert(tbl58, v46)
 				end
@@ -22167,6 +22366,7 @@ tbl31 = {
 						hair = 15219402962,
 						glasses = 5553372199,
 						shirt = 12824678888,
+						pants = 15464582959,
 						tshirt = 135302790003177,
 						back = 107476505171223,
 					},
@@ -22176,6 +22376,10 @@ tbl31 = {
 						shirt = 4724435901,
 						pants = 14953081401,
 						face = 110597544639254,
+					},
+					{
+						name = "You",
+						asset = 98128613476388,
 					},
 				}
 				Config._vx7Outfits = outfitsData
@@ -22422,13 +22626,19 @@ tbl31 = {
 						if id then
 							local objects = O.getAssetObjects(id)
 							local inst = objects and O.findFirst(objects, { slot[2] })
-							if not inst then
+							local layered = (not inst) and objects and O.findFirst(objects, { "Accoutrement" })
+							if inst then
+								table.insert(plan, { kind = "classic", id = id, template = inst })
+							elseif layered then
+								table.insert(plan, { kind = "accessory", id = id, template = layered })
+							else
 								inst = Instance.new(slot[2])
 								pcall(function()
 									inst[slot[3]] = "http://www.roblox.com/asset/?id=" .. tostring(id)
 								end)
+								table.insert(plan, { kind = "classic", id = id, template = inst })
+								table.insert(failed, slot[1] .. "(asset load failed, direct URL used):" .. tostring(id))
 							end
-							table.insert(plan, { kind = "classic", id = id, template = inst })
 						end
 					end
 					for _, key in ipairs({ "hair", "glasses", "head", "face", "back" }) do
@@ -22454,6 +22664,67 @@ tbl31 = {
 								end
 							else
 								table.insert(failed, key .. ":" .. tostring(id))
+							end
+						end
+					end
+					if data.asset then
+						local objects = O.getAssetObjects(data.asset)
+						if not objects then
+							table.insert(failed, "asset:" .. tostring(data.asset))
+						else
+							local added = 0
+							local function addAssetId(id, kind, class, prop)
+								local sub = O.getAssetObjects(id)
+								local inst = sub and O.findFirst(sub, { class })
+								if inst then
+									table.insert(plan, { kind = kind, id = id, template = inst })
+									added = added + 1
+								else
+									table.insert(failed, tostring(prop) .. ":" .. tostring(id))
+								end
+							end
+							for _, root in ipairs(objects) do
+								local items = { root }
+								for _, d in ipairs(root:GetDescendants()) do
+									table.insert(items, d)
+								end
+								for _, inst in ipairs(items) do
+									if inst:IsA("Accoutrement") then
+										table.insert(plan, { kind = "accessory", id = data.asset, template = inst })
+										added = added + 1
+									elseif inst:IsA("Shirt") or inst:IsA("Pants") or inst:IsA("ShirtGraphic") then
+										table.insert(plan, { kind = "classic", id = data.asset, template = inst })
+										added = added + 1
+									elseif inst:IsA("MeshPart") and inst.Name == "Head" and not inst:FindFirstAncestorWhichIsA("Accoutrement") then
+										table.insert(plan, { kind = "headpart", id = data.asset, template = inst })
+										added = added + 1
+									elseif inst:IsA("Decal") and inst.Name == "face" and not inst:FindFirstAncestorWhichIsA("MeshPart") then
+										table.insert(plan, { kind = "facedecal", id = data.asset, template = inst })
+										added = added + 1
+									elseif inst:IsA("HumanoidDescription") then
+										for _, prop in ipairs({ "Shirt", "Pants" }) do
+											local id = tonumber(inst[prop])
+											if id and id > 0 then
+												addAssetId(id, "classic", prop, prop)
+											end
+										end
+										local graphic = tonumber(inst.GraphicTShirt)
+										if graphic and graphic > 0 then
+											addAssetId(graphic, "classic", "ShirtGraphic", "GraphicTShirt")
+										end
+										for _, prop in ipairs({ "HatAccessory", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShouldersAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory" }) do
+											for idText in tostring(inst[prop]):gmatch("%d+") do
+												local id = tonumber(idText)
+												if id and id > 0 then
+													addAssetId(id, "accessory", "Accoutrement", prop)
+												end
+											end
+										end
+									end
+								end
+							end
+							if added == 0 then
+								table.insert(failed, "asset(no wearable inside):" .. tostring(data.asset))
 							end
 						end
 					end
@@ -22607,7 +22878,7 @@ tbl31 = {
 					dim.ZIndex = 1
 
 					local card = Instance.new("Frame", sg)
-					card.Size = UDim2.fromOffset(320, 260)
+					card.Size = UDim2.fromOffset(math.max(320, #outfitsData * 150 + 30), 260)
 					card.Position = UDim2.fromScale(0.5, 0.5)
 					card.AnchorPoint = Vector2.new(0.5, 0.5)
 					card.BackgroundColor3 = Color3.fromRGB(12, 14, 28)
@@ -22683,7 +22954,7 @@ tbl31 = {
 						local icon = Instance.new("TextLabel", preview)
 						icon.Size = UDim2.fromScale(1, 1)
 						icon.BackgroundTransparency = 1
-						icon.Text = outfit.name == "Doom" and "D" or "H"
+						icon.Text = outfit.name:sub(1, 1):upper()
 						icon.TextColor3 = Color3.fromRGB(140, 180, 255)
 						icon.Font = Enum.Font.GothamBlack
 						icon.TextSize = 42
